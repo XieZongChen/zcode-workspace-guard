@@ -20,18 +20,26 @@ CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
 
 class Session(object):
-    """每次运行的临时环境：工作区 {WS}、界外目录 {OUT}、真实 /tmp {TMP}。"""
+    """每次运行的临时环境：工作区 {WS}、界外目录 {OUT}、真实 /tmp {TMP}。
+
+    基目录建在系统 TMPDIR 下，但 guard 子进程的 TMPDIR 被重定向到
+    {SESSION}/tmpdir——否则 {OUT} 会天然落在可写根 $TMPDIR 内，围栏
+    用例全部失效（环境隔离，见 TEST_PLAN.md §1）。
+    """
 
     def __init__(self):
         base = tempfile.mkdtemp(prefix="wsg-test-")
         self.ws = os.path.join(base, "ws")
         self.out = os.path.join(base, "out")
+        self.tmpdir = os.path.join(base, "tmpdir")
         os.makedirs(self.ws)
         os.makedirs(self.out)
+        os.makedirs(self.tmpdir)
         self.placeholders = {
             "{WS}": self.ws,
             "{OUT}": self.out,
-            "{TMP}": tempfile.gettempdir(),
+            "{TMP}": "/tmp",  # 可写根内的真实 /tmp（子进程 TMPDIR 已被重定向）
+            "{HOME}": os.path.expanduser("~"),
         }
 
     def resolve(self, value):
@@ -72,7 +80,7 @@ def run_case(session, case, index):
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/tmp"),
-        "TMPDIR": os.environ.get("TMPDIR", tempfile.gettempdir()),
+        "TMPDIR": session.tmpdir,  # 受控 TMPDIR，保证 {OUT} 在可写根之外
         "ZCODE_PROJECT_DIR": session.ws,
     }
     if "config" in case:

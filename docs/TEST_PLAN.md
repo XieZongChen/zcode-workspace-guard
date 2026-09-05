@@ -20,10 +20,13 @@
     `ZCODE_PROJECT_DIR`）
   - `{OUT}` —— 工作区之外的临时目录（界外路径构造用）
   - `{TMP}` —— 真实 `/tmp`（可写根内路径构造用）
+  - `{HOME}` —— 运行机器的真实家目录（界外路径构造用，不落盘进用例文件）
 - **配置注入**：用例可带 `"config": {...}`，运行器写入临时 JSON 并设置
   `ZCODE_WORKSPACE_GUARD_CONFIG`（走取值链第 1 级，测试封闭、不触碰
   宿主真实配置）
-- 环境隔离：测试进程注入最小 env（PATH/HOME/TMPDIR +
+- **环境隔离**：guard 子进程的 `TMPDIR` 被重定向到运行期受控目录
+  （否则 `{OUT}` 会天然落在可写根 `$TMPDIR` 内导致围栏用例失效）；
+  测试进程注入最小 env（PATH/HOME/受控 TMPDIR +
   ZCODE_PROJECT_DIR/ZCODE_WORKSPACE_GUARD_CONFIG），不继承无关变量
 
 ## 2. 用例矩阵

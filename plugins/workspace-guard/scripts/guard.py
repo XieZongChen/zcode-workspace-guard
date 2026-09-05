@@ -98,12 +98,14 @@ def writable_roots(root):
 
 def canonical_path(path):
     """规范化目标路径：自目标起逐级上溯找最深存在的祖先，realpath 后拼回
-    剩余段。防符号链接偷渡（TOCTOU）：解析发生在判定时点。"""
+    剩余段。防符号链接偷渡（TOCTOU）：解析发生在判定时点。
+    注意用 lexists 而非 exists——悬空符号链接（目标不存在）也必须解析
+    链接本身，否则会被当作不存在路径而放过。"""
     path = os.path.expanduser(path)
     tail = []
     p = path
     while True:
-        if os.path.exists(p):
+        if os.path.lexists(p):
             return os.path.join(os.path.realpath(p), *tail) if tail else os.path.realpath(p)
         rest = os.path.basename(p)
         if rest in ("", "/", "."):
@@ -146,6 +148,19 @@ def decide(payload):
                     "permissionDecisionReason": (
                         TAG + " 危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。]" % reason
                     ),
+                }
+            }
+
+    if tool_name in FILE_TOOLS:
+        root = workspace_root()
+        target = tool_input.get("file_path") or tool_input.get("path")
+        decision, reason = fence_file_tool(target, root)
+        if decision:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": decision,
+                    "permissionDecisionReason": TAG + " %s]" % reason,
                 }
             }
 
