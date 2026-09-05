@@ -50,6 +50,18 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 | `sandbox_enabled` | boolean | `true` | 项目围栏开关，关闭后仅剩危险命令门 |
 | `danger_rules` | string | 全部内置规则 | 危险规则清单，一行一条：内置规则 ID 或自定义正则（如 `git\s+push\s+--force`）。删除某行即停用该规则，清空恢复全部默认；仅危险命令门开启时生效 |
 
+清单输入方式（一行一条，行分两种身份）：
+
+```text
+# 注释行，不参与匹配
+fork-bomb              # 内置规则 ID：删除此行即停用对应拦截
+rm-destructive
+git\s+push\s+--force   # 自定义正则：命令文本命中即人工确认
+^sudo\s+reboot$
+```
+
+内置规则的完整匹配模式对照表见 [docs/DESIGN.md](docs/DESIGN.md) §6.1。其中 rm / chmod 类判定是 token 级组合逻辑（ rm + 递归旗标 + 危险目标三者同现），无法等价压缩为单行正则，故清单中以 ID 引用而非展示为正则。
+
 ### 手动编辑配置文件
 
 三项配置持久化于 `~/.zcode/cli/config.json` 的 `plugins` 配置段，`danger_rules` 可直接手动维护：值为清单文本（一行一条，格式同上表），保存后对下一次工具调用立即生效——守门脚本每次调用现读该文件，无需重启。清空该键等于恢复全部默认规则。
