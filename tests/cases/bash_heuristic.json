@@ -9,5 +9,8 @@
   {"name": "B8 rm 界外绝对路径需确认", "tool_name": "Bash", "tool_input": {"command": "rm {OUT}/somefile"}, "expect": {"decision": "ask", "reason_contains": "越界"}},
   {"name": "B9 tee 界外需确认", "tool_name": "Bash", "tool_input": {"command": "tee {OUT}/log"}, "expect": {"decision": "ask", "reason_contains": "越界"}},
   {"name": "B10 相对路径目标不检测", "tool_name": "Bash", "tool_input": {"command": "cp src/a.ts dist/b.js"}, "expect": {"decision": null}},
-  {"name": "B11 界内重定向放行", "tool_name": "Bash", "tool_input": {"command": "npm run build > {WS}/out.log"}, "expect": {"decision": null}}
+  {"name": "B11 界内重定向放行", "tool_name": "Bash", "tool_input": {"command": "npm run build > {WS}/out.log"}, "expect": {"decision": null}},
+  {"name": "B12 额外可写根内重定向放行", "tool_name": "Bash",
+   "config": {"extra_writable_roots": "{OUT}"},
+   "tool_input": {"command": "echo x > {OUT}/extra-f"}, "expect": {"decision": null}}
 ]

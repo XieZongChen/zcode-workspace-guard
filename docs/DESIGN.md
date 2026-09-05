@@ -22,7 +22,8 @@ ZCode（类 Claude Code 的 AI 编码客户端）在"完全访问"等权限模�
 
 两能力相互独立，各自可关。规则清单 `danger_rules`（分号分隔：内置
 规则 ID 与自定义正则）仅在危险命令门开启时生效；默认启用全部内置
-规则，用户可删除不想要的段（协议见 §6.1）。
+规则，用户可删除不想要的段（协议见 §6.1）。围栏另有额外可写根
+`extra_writable_roots`（分号分隔目录，多项目工作区场景，见 §5.2）。
 
 ## 3. 与宿主（ZCode）的关系与硬约束
 
@@ -71,13 +72,21 @@ zcode-workspace-guard/
 
 ```
 writable_roots = dedupe([
-    realpath(项目根),        # ZCODE_PROJECT_DIR
+    realpath(项目根),        # ZCODE_PROJECT_DIR（宿主注入的是会话工作目录）
     realpath("/tmp"),
     realpath($TMPDIR),         # macOS 通常是 /var/folders/...
+    *额外可写根               # extra_writable_roots：分号分隔绝对路径，~ 展开
 ])
 ```
 
 所有路径先规范化再比较。`/dev/null` 额外视为合法写入目标。
+
+**多项目工作区**：实测（zcode.cjs）宿主将**会话工作目录**注入为
+`ZCODE_PROJECT_DIR`——一个 ZCode 工作区并列多个项目时，项目根可能只
+覆盖其中一个子项目，兄弟目录会被围栏判为界外。此场景由用户在
+`extra_writable_roots` 中显式声明额外可写目录（如整个工作区文件夹），
+不做自动推断（曾考虑"向上找含 .zcode 的祖先"，但家目录同样含
+`.zcode`，会把家目录静默纳入可写根，否决）。
 
 ### 5.3 判定分支
 

@@ -112,9 +112,18 @@ def workspace_root():
     return os.path.realpath(env)
 
 
-def writable_roots(root):
-    """可写根集合：项目根 + /tmp + $TMPDIR，全部 realpath 规范化去重。"""
+def writable_roots(root, extra=""):
+    """可写根集合：项目根 + /tmp + $TMPDIR + 额外可写根，realpath 去重。
+
+    extra 为 extra_writable_roots 配置（分号分隔绝对路径，兼容换行，
+    ~ 展开）。项目根取自 ZCODE_PROJECT_DIR——宿主注入的是会话工作目录，
+    多项目工作区下可能只覆盖其中一个子项目，兄弟目录经此配置纳入
+    （见 DESIGN.md §5.2）。"""
     roots = [root, "/tmp", os.environ.get("TMPDIR", "")]
+    for item in (extra or "").replace("\n", ";").split(";"):
+        item = item.strip()
+        if item:
+            roots.append(item)
     seen = []
     for r in roots:
         if not r:
@@ -147,11 +156,11 @@ def is_under(path, root):
     return path == root or path.startswith(root + os.sep)
 
 
-def fence_file_tool(path, root):
+def fence_file_tool(path, root, extra_roots=""):
     """文件工具围栏：返回 (decision, reason) 或 (None, None) 表示围栏不适用。"""
     if not path or not root:
         return None, None
-    roots = writable_roots(root)
+    roots = writable_roots(root, extra_roots)
     target = canonical_path(path)
     if target == "/dev/null" or any(is_under(target, r) for r in roots):
         return "allow", "项目内写入，放行"
@@ -183,11 +192,11 @@ def _abs_outside(path, roots):
     return not any(is_under(canonical, r) for r in roots)
 
 
-def check_bash_fence(command, root):
+def check_bash_fence(command, root, extra_roots=""):
     """Bash 越界写启发式：命中返回原因字符串，否则 None。"""
     if not root:
         return None
-    roots = writable_roots(root)
+    roots = writable_roots(root, extra_roots)
 
     for m in REDIRECT.finditer(command):
         target = m.group(1) or m.group(2)
@@ -212,11 +221,12 @@ def check_bash_fence(command, root):
 
 # ---- 配置取值链（见 DESIGN.md §5.1：env 注入 > 宿主 config.json > 默认值）----
 
-CONFIG_KEYS = ("sandbox_enabled", "danger_gate_enabled", "danger_rules")
+CONFIG_KEYS = ("sandbox_enabled", "danger_gate_enabled", "danger_rules", "extra_writable_roots")
 DEFAULT_CONFIG = {
     "sandbox_enabled": True,
     "danger_gate_enabled": True,
     "danger_rules": "",  # 空 = 启用全部内置规则（DESIGN.md §6.1）
+    "extra_writable_roots": "",  # 分号分隔目录，多项目工作区场景（§5.2）
 }
 CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
@@ -295,6 +305,9 @@ def load_config():
     cfg["danger_rules"] = (
         cfg["danger_rules"] if isinstance(cfg["danger_rules"], str) else ""
     )
+    cfg["extra_writable_roots"] = (
+        cfg["extra_writable_roots"] if isinstance(cfg["extra_writable_roots"], str) else ""
+    )
     return cfg
 
 
@@ -331,19 +344,20 @@ def decide(payload):
                 return _ask("自定义危险规则命中（%s）。请先向用户展示完整命令并获得确认。" % rule)
         if cfg["sandbox_enabled"]:
             root = workspace_root()
-            reason = check_bash_fence(command, root)
+            extra = cfg["extra_writable_roots"]
+            reason = check_bash_fence(command, root, extra)
             if reason:
                 return _ask(
                     "Bash 命令疑似越界写入（启发式检测，enforcement: heuristic），"
                     "需要人工确认。%s。可写根：%s。请改用项目内路径，或向用户说明理由。"
-                    % (reason, "、".join(writable_roots(root)) if root else "未知")
+                    % (reason, "、".join(writable_roots(root, extra)) if root else "未知")
                 )
 
     if tool_name in FILE_TOOLS:
         if cfg["sandbox_enabled"]:
             root = workspace_root()
             target = tool_input.get("file_path") or tool_input.get("path")
-            decision, reason = fence_file_tool(target, root)
+            decision, reason = fence_file_tool(target, root, cfg["extra_writable_roots"])
             if decision:
                 return {
                     "hookSpecificOutput": {

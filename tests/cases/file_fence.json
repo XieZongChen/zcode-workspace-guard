@@ -9,5 +9,8 @@
   {"name": "F8 项目内符号链接指向界外需确认(TOCTOU)", "tool_name": "Write",
    "setup": [{"symlink": {"link": "{WS}/link.ts", "target": "{OUT}/x.txt"}}],
    "tool_input": {"file_path": "{WS}/link.ts", "content": "x"},
-   "expect": {"decision": "ask", "reason_contains": "项目"}}
+   "expect": {"decision": "ask", "reason_contains": "项目"}},
+  {"name": "F9 额外可写根内文件放行", "tool_name": "Write",
+   "config": {"extra_writable_roots": "{OUT}"},
+   "tool_input": {"file_path": "{OUT}/extra-ok.txt", "content": "x"}, "expect": {"decision": "allow"}}
 ]

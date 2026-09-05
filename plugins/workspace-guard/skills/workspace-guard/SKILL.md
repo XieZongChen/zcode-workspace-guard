@@ -11,7 +11,8 @@ description: Use when a tool call is denied or questioned with a "[workspace-gua
 
 ## 可写范围（项目围栏）
 
-- 允许写入：当前项目根目录、`/tmp`、`$TMPDIR`
+- 允许写入：当前项目根目录、`/tmp`、`$TMPDIR`，以及用户配置的额外
+  可写根（`extra_writable_roots`）
 - 越界写入（家目录、系统路径、其他项目）会触发 `ask` 人工确认——确认框
   就是用户的审批通道：用户批准则这一次放行，拒绝则你必须换方案
 - 收到"写入目标在项目外"时，首选做法是**改用项目内路径**（如把

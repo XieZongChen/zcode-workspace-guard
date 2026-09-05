@@ -49,6 +49,7 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 | `danger_gate_enabled` | boolean | `true` | 危险命令门开关 |
 | `sandbox_enabled` | boolean | `true` | 项目围栏开关，关闭后仅剩危险命令门 |
 | `danger_rules` | string | 全部内置规则 | 危险规则清单，分号分隔：内置规则 ID 与自定义正则，如 `fork-bomb;dd-device;git\s+push\s+--force`。删除某段即停用该规则，清空恢复全部默认；仅危险命令门开启时生效 |
+| `extra_writable_roots` | string | 空 | 额外可写目录，绝对路径、分号分隔（支持 `~`）。一个工作区并列多个项目时使用：围栏的项目根取自宿主注入的项目目录（会话工作目录），可能只是其中一个子项目，兄弟项目目录需在此声明 |
 
 清单输入方式（分号 `;` 分隔——设置界面是单行输入框，换行分隔无法在界面保存往返中存活）：
 

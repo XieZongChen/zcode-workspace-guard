@@ -19,7 +19,12 @@ CASES_DIR = os.path.join(REPO_ROOT, "tests", "cases")
 CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
 # 基线配置：与 guard.py DEFAULT_CONFIG 等价，逐用例全量注入（测试封闭性）
-BASELINE_CONFIG = {"sandbox_enabled": True, "danger_gate_enabled": True, "danger_rules": ""}
+BASELINE_CONFIG = {
+    "sandbox_enabled": True,
+    "danger_gate_enabled": True,
+    "danger_rules": "",
+    "extra_writable_roots": "",
+}
 
 
 class Session(object):
@@ -98,6 +103,7 @@ def run_case(session, case, index):
         # 值会污染判定，0.3.0 事故：mangled 保存值让 D 组全红）
         cfg = dict(BASELINE_CONFIG)
         cfg.update(case.get("config", {}))
+        cfg = session.resolve(cfg)  # config 值支持 {WS}/{OUT} 等占位符
         cfg_path = os.path.abspath(
             os.path.join(session.ws, "..", "config-%d.json" % index)
         )

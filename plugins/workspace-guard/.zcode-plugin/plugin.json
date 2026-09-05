@@ -1,6 +1,6 @@
 {
   "name": "workspace-guard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
   "description_i18n": {
     "en": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
@@ -25,6 +25,12 @@
       "default": "fork-bomb;dd-device;mkfs;diskutil-wipe;no-preserve-root;rm-destructive;chmod-recursive",
       "title": "危险规则清单",
       "description": "内置规则 ID 与自定义正则，用分号(;)分隔，如 fork-bomb;dd-device;git\\s+push\\s+--force。删除某段即停用该规则；清空恢复全部默认；仅危险命令门开启时生效。内置 ID：fork-bomb/dd-device/mkfs/diskutil-wipe/no-preserve-root/rm-destructive/chmod-recursive"
+    },
+    "extra_writable_roots": {
+      "type": "string",
+      "default": "",
+      "title": "额外可写根",
+      "description": "额外允许写入的目录，绝对路径、分号分隔（支持 ~），如 ~/space/myworkspace。适用于一个工作区并列多个项目的场景：围栏的项目根取自宿主注入的项目目录，可能只是其中一个子项目。仅项目围栏开启时生效"
     }
   }
 }

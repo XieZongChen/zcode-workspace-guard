@@ -22,8 +22,9 @@
   - `{TMP}` —— 真实 `/tmp`（可写根内路径构造用）
   - `{HOME}` —— 运行机器的真实家目录（界外路径构造用，不落盘进用例文件）
 - **配置注入（全量基线，测试封闭）**：每个用例都注入一份基线配置
-  （三项配置全量，与 guard 默认值等价），用例自带的 `"config": {...}`
-  在基线上覆盖，经 `ZCODE_WORKSPACE_GUARD_CONFIG` 走取值链第 1 级。
+  （全部配置键，与 guard 默认值等价），用例自带的 `"config": {...}`
+  在基线上覆盖，经 `ZCODE_WORKSPACE_GUARD_CONFIG` 走取值链第 1 级；
+  **config 值支持路径占位符**（`{WS}`/`{OUT}` 等，写入前解析）。
   由此 guard 不会读本机真实 `~/.zcode/cli/config.json` 保存过的值——
   0.3.0 事故教训：宿主 UI 保存的 mangled 值曾让 D 组在本机全红
 - **环境隔离**：guard 子进程的 `TMPDIR` 被重定向到运行期受控目录
@@ -64,6 +65,7 @@
 | F6 | tool_input 用 `path` 键而非 `file_path` | 同 F1 语义 |
 | F7 | ApplyPatch 工具名 | 同 F1 语义 |
 | F8 | 界内符号链接指向界外（运行器创建） | `ask`（TOCTOU 防护） |
+| F9 | config 注入 `extra_writable_roots={OUT}` + Write 界外目录内文件 | `allow`（额外可写根纳入） |
 
 ### M4 Bash 越界启发式（cases/bash_heuristic.json）
 
@@ -80,6 +82,7 @@
 | B9 | `tee {OUT}/log` | `ask` |
 | B10 | `cp src/a.ts dist/b.js`（相对路径） | 无输出（不检测相对路径） |
 | B11 | `npm run build > {WS}/out.log` | 无输出（界内） |
+| B12 | config 注入 `extra_writable_roots={OUT}` + `echo x > {OUT}/f` | 无输出（额外可写根内） |
 
 ### M5 配置取值链与规则清单（cases/config_chain.json）
 
