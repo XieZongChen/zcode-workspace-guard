@@ -117,8 +117,8 @@ def writable_roots(root, extra=""):
 
     extra 为 extra_writable_roots 配置（分号分隔绝对路径，兼容换行，
     ~ 展开）。项目根取自 ZCODE_PROJECT_DIR——宿主注入的是会话工作目录，
-    多项目工作区下可能只覆盖其中一个子项目，兄弟目录经此配置纳入
-    （见 DESIGN.md §5.2）。"""
+    项目下并列多个文件夹时可能只覆盖其中一个子目录，其余文件夹经此
+    配置纳入（见 DESIGN.md §5.2）。"""
     roots = [root, "/tmp", os.environ.get("TMPDIR", "")]
     for item in (extra or "").replace("\n", ";").split(";"):
         item = item.strip()
@@ -226,7 +226,7 @@ DEFAULT_CONFIG = {
     "sandbox_enabled": True,
     "danger_gate_enabled": True,
     "danger_rules": "",  # 空 = 启用全部内置规则（DESIGN.md §6.1）
-    "extra_writable_roots": "",  # 分号分隔目录，多项目工作区场景（§5.2）
+    "extra_writable_roots": "",  # 分号分隔目录，项目多文件夹场景（§5.2）
 }
 CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
