@@ -1,6 +1,6 @@
 {
   "name": "workspace-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
   "description_i18n": {
     "en": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
@@ -20,11 +20,12 @@
       "title": "危险命令门",
       "description": "开启后毁灭性命令（删根/抹盘/fork 炸弹等）强制人工确认"
     },
-    "custom_danger_rules": {
+    "danger_rules": {
       "type": "string",
-      "default": "",
-      "title": "自定义危险规则",
-      "description": "一行一条正则表达式，Bash 命令文本命中即触发人工确认；仅危险命令门开启时生效"
+      "multiline": true,
+      "default": "# 危险规则清单，一行一条：内置规则 ID 或自定义正则\n# 删除某行即停用该规则；清空恢复全部默认（规则含义见插件文档）\nfork-bomb\ndd-device\nmkfs\ndiskutil-wipe\nno-preserve-root\nrm-destructive\nchmod-recursive",
+      "title": "危险规则清单",
+      "description": "一行一条：内置规则 ID（fork-bomb / dd-device / mkfs / diskutil-wipe / no-preserve-root / rm-destructive / chmod-recursive）或自定义正则（如 git\\s+push\\s+--force）。删除某行即停用该规则；清空恢复全部默认；仅危险命令门开启时生效"
     }
   }
 }

@@ -77,18 +77,26 @@
 | B10 | `cp src/a.ts dist/b.js`（相对路径） | 无输出（不检测相对路径） |
 | B11 | `npm run build > {WS}/out.log` | 无输出（界内） |
 
-### M5 配置取值链（cases/config_chain.json）
+### M5 配置取值链与规则清单（cases/config_chain.json）
 
 | 编号 | 用例 | 期望 |
 | --- | --- | --- |
 | C1 | config 注入 `danger_gate_enabled=false` + fork 炸弹（无路径特征） | 无输出（门关，围栏无路径可查） |
 | C2 | config 注入 `danger_gate_enabled=false` + `sandbox_enabled=true` + 界外文件写入 | 仍 `ask`（两能力独立） |
-| C3 | config 注入 `custom_danger_rules` 含 `git\s+push\s+--force` + 该命令 | `ask`，reason 含"自定义" |
-| C4 | 自定义规则含一行非法正则 + 一行合法规则，命令命中合法行 | `ask`（非法行跳过不崩） |
+| C3 | config 注入 `danger_rules` 仅一条自定义正则 `git\s+push\s+--force` + 该命令 | `ask`，reason 含"自定义"（清单非空=精确清单生效） |
+| C4 | `danger_rules` 含一行非法正则 + 一行合法规则，命令命中合法行 | `ask`（非法行跳过不崩） |
 | C5a | config 注入 `sandbox_enabled=false` + 界外文件写入 | 无输出（围栏关） |
 | C5b | config 注入 `sandbox_enabled=false` + 界外重定向 | 无输出（围栏关） |
 | C6 | `ZCODE_WORKSPACE_GUARD_CONFIG` 指向不存在文件 + 危险命令 | 仍 `ask`（回落默认值） |
 | C7 | config 注入 `danger_gate_enabled=false` + `rm -rf /` | 仍 `ask`（围栏拦：`/` 在界外，两层独立叠加） |
+| C8 | config 注入 `danger_rules=""` + `rm -rf /` | `ask`，reason 含"危险"（空=启用全部内置规则） |
+| C9 | config 注入 `danger_rules="fork-bomb"` + `rm -rf /` | `ask`，reason 含"越界"（`rm-destructive` 已删，围栏兜底） |
+| C10 | config 注入 `danger_rules` 仅注释行 + fork 炸弹 | 无输出（清单非空但无规则） |
+| C11 | `danger_rules` 混排：内置 ID + 自定义正则，命令命中自定义行 | `ask`，reason 含"自定义" |
+
+**元一致性测试**（`run_tests.py` 内置，随每次回归执行）：plugin.json
+`danger_rules` 的默认值按清单协议解析出的规则 ID 集合，必须与
+guard.py `BUILTIN_RULES` 的键集合完全一致——防止两处清单漂移。
 
 ## 3. 回归纪律
 

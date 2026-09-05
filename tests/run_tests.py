@@ -162,6 +162,41 @@ def load_cases():
     return cases
 
 
+def check_manifest_rules():
+    """元一致性测试：plugin.json danger_rules 默认值与 guard.py BUILTIN_RULES 一致。
+
+    防止两处规则清单漂移（TEST_PLAN.md M5）。用 ast 提取 guard.py 的
+    BUILTIN_RULES 键集合，与 plugin.json 默认值按清单协议解析的结果比对。
+    """
+    import ast
+
+    with open(GUARD, encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    builtin_ids = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "BUILTIN_RULES":
+                    builtin_ids = [k.value for k in node.value.keys]
+    manifest_path = os.path.join(
+        REPO_ROOT, "plugins", "workspace-guard", ".zcode-plugin", "plugin.json"
+    )
+    with open(manifest_path, encoding="utf-8") as f:
+        manifest = json.load(f)
+    default_text = manifest["userConfig"]["danger_rules"]["default"]
+    listed = {
+        line.strip()
+        for line in default_text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    ok = builtin_ids is not None and listed == set(builtin_ids)
+    print(
+        "%s  META plugin.json 危险规则默认值与 guard.py 内置规则一致"
+        % ("PASS" if ok else "FAIL")
+    )
+    return ok
+
+
 def main():
     cases = load_cases()
     if not cases:
@@ -169,11 +204,13 @@ def main():
         return 1
     session = Session()
     passed = 0
+    if check_manifest_rules():
+        passed += 1
     for i, case in enumerate(cases):
         if run_case(session, case, i):
             passed += 1
-    print("\n%d/%d 通过" % (passed, len(cases)))
-    return 0 if passed == len(cases) else 1
+    print("\n%d/%d 通过" % (passed, len(cases) + 1))
+    return 0 if passed == len(cases) + 1 else 1
 
 
 if __name__ == "__main__":

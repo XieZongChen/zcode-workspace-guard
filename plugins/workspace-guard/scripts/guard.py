@@ -2,8 +2,8 @@
 """workspace-guard：ZCode PreToolUse 守门脚本。
 
 设计文档见仓库 docs/DESIGN.md；测试规划见 docs/TEST_PLAN.md。
-当前已落地：危险命令门（内置规则）、项目围栏-文件工具。后续里程碑：
-Bash 越界启发式、配置取值链。
+能力：危险命令门（规则清单驱动，内置规则可删）、项目围栏（文件工具
+精确判断 + Bash 越界写启发式）、配置取值链。
 """
 import json
 import os
@@ -40,36 +40,63 @@ MKFS = re.compile(r"\bmkfs(\.\w+)?\b")
 DISKUTIL_WIPE = re.compile(r"\bdiskutil\b[^;&|]*\b(eraseDisk|eraseVolume|deleteContainer)\b")
 
 
-def check_danger(command):
-    """危险命令门：命中返回原因字符串，安全返回 None。"""
-    if FORK_BOMB.search(command):
-        return "fork 炸弹"
-    if DD_TO_DEVICE.search(command):
-        return "dd 直写设备"
-    if MKFS.search(command):
-        return "mkfs 格式化"
-    if DISKUTIL_WIPE.search(command):
-        return "diskutil 抹卷"
-    if "--no-preserve-root" in command:
-        return "rm --no-preserve-root"
-
+def _rule_rm_destructive(command):
+    """rm 家族：rm + 递归/强制旗标 + 危险目标 token 三者同现。"""
     tokens = command.split()
-    has_dangerous_target = any(DANGEROUS_TARGET.match(t) for t in tokens)
-
-    if has_dangerous_target:
-        has_rm = any(t == "rm" or t.endswith("/rm") for t in tokens)
-        has_rm_flag = any(RM_FLAG.match(t) for t in tokens)
-        if has_rm and has_rm_flag:
-            return "rm 递归/强制删除 根目录、家目录或通配整个目录"
-
-        has_chmod = any(
-            t in ("chmod", "chown") or t.endswith(("/chmod", "/chown")) for t in tokens
-        )
-        has_rec_flag = any(CHMOD_FLAG.match(t) for t in tokens)
-        if has_chmod and has_rec_flag:
-            return "chmod/chown 递归修改根目录或家目录权限"
-
+    if not any(DANGEROUS_TARGET.match(t) for t in tokens):
+        return None
+    has_rm = any(t == "rm" or t.endswith("/rm") for t in tokens)
+    has_flag = any(RM_FLAG.match(t) for t in tokens)
+    if has_rm and has_flag:
+        return "rm 递归/强制删除 根目录、家目录或通配整个目录"
     return None
+
+
+def _rule_chmod_recursive(command):
+    """chmod/chown 递归作用于危险目标 token。"""
+    tokens = command.split()
+    if not any(DANGEROUS_TARGET.match(t) for t in tokens):
+        return None
+    has_chmod = any(
+        t in ("chmod", "chown") or t.endswith(("/chmod", "/chown")) for t in tokens
+    )
+    if has_chmod and any(CHMOD_FLAG.match(t) for t in tokens):
+        return "chmod/chown 递归修改根目录或家目录权限"
+    return None
+
+
+# 内置规则表：ID → 判定函数（命中返回原因字符串，否则 None）。
+# 顺序即清单回落（空值启用全部）时的检查顺序，与历史优先级一致。
+BUILTIN_RULES = {
+    "fork-bomb": lambda c: "fork 炸弹" if FORK_BOMB.search(c) else None,
+    "dd-device": lambda c: "dd 直写设备" if DD_TO_DEVICE.search(c) else None,
+    "mkfs": lambda c: "mkfs 格式化" if MKFS.search(c) else None,
+    "diskutil-wipe": lambda c: "diskutil 抹卷" if DISKUTIL_WIPE.search(c) else None,
+    "no-preserve-root": lambda c: (
+        "rm --no-preserve-root" if "--no-preserve-root" in c else None
+    ),
+    "rm-destructive": _rule_rm_destructive,
+    "chmod-recursive": _rule_chmod_recursive,
+}
+
+
+def parse_rules(text):
+    """danger_rules 清单解析（协议见 DESIGN.md §6.1）。
+
+    空白/# 注释行跳过；内置规则 ID 启用对应判定；其余行为自定义正则。
+    空文本或全空白 = 启用全部内置规则（安全默认，清空即重置）。"""
+    if not text or not text.strip():
+        return list(BUILTIN_RULES), []
+    enabled, customs = [], []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line in BUILTIN_RULES:
+            enabled.append(line)
+        else:
+            customs.append(line)
+    return enabled, customs
 
 
 # ---- 项目围栏：可写根与路径规范化（见 DESIGN.md §5.2/§6.3）----
@@ -183,11 +210,11 @@ def check_bash_fence(command, root):
 
 # ---- 配置取值链（见 DESIGN.md §5.1：env 注入 > 宿主 config.json > 默认值）----
 
-CONFIG_KEYS = ("sandbox_enabled", "danger_gate_enabled", "custom_danger_rules")
+CONFIG_KEYS = ("sandbox_enabled", "danger_gate_enabled", "danger_rules")
 DEFAULT_CONFIG = {
     "sandbox_enabled": True,
     "danger_gate_enabled": True,
-    "custom_danger_rules": "",
+    "danger_rules": "",  # 空 = 启用全部内置规则（DESIGN.md §6.1）
 }
 CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
@@ -263,18 +290,15 @@ def load_config():
 
     cfg["sandbox_enabled"] = _as_bool(cfg["sandbox_enabled"])
     cfg["danger_gate_enabled"] = _as_bool(cfg["danger_gate_enabled"])
-    cfg["custom_danger_rules"] = (
-        cfg["custom_danger_rules"] if isinstance(cfg["custom_danger_rules"], str) else ""
+    cfg["danger_rules"] = (
+        cfg["danger_rules"] if isinstance(cfg["danger_rules"], str) else ""
     )
     return cfg
 
 
-def check_custom_rules(command, rules_text):
-    """自定义危险规则：一行一条正则，编译失败跳过该行。命中返回该行。"""
-    for line in rules_text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
+def check_custom_rules(command, rule_lines):
+    """自定义危险正则：逐行匹配，编译失败跳过该行。命中返回该行。"""
+    for line in rule_lines:
         try:
             if re.search(line, command):
                 return line
@@ -292,10 +316,15 @@ def decide(payload):
     if tool_name == "Bash":
         command = tool_input.get("command", "")
         if cfg["danger_gate_enabled"]:
-            reason = check_danger(command)
-            if reason:
-                return _ask("危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。" % reason)
-            rule = check_custom_rules(command, cfg["custom_danger_rules"])
+            enabled, custom_lines = parse_rules(cfg["danger_rules"])
+            for rule_id in enabled:
+                reason = BUILTIN_RULES[rule_id](command)
+                if reason:
+                    return _ask(
+                        "危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。"
+                        % reason
+                    )
+            rule = check_custom_rules(command, custom_lines)
             if rule:
                 return _ask("自定义危险规则命中（%s）。请先向用户展示完整命令并获得确认。" % rule)
         if cfg["sandbox_enabled"]:

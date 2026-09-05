@@ -17,11 +17,12 @@ ZCode（类 Claude Code 的 AI 编码客户端）在"完全访问"等权限模�
 
 | 能力 | 开关（userConfig） | 默认 | 触发动作 |
 | --- | --- | --- | --- |
-| 危险命令门 | `danger_gate_enabled` | 开 | Bash 命令命中内置/自定义规则 → `ask` 人工确认 |
+| 危险命令门 | `danger_gate_enabled` | 开 | Bash 命令命中规则清单（内置规则 + 自定义正则）→ `ask` 人工确认 |
 | 项目围栏 | `sandbox_enabled` | 开 | 文件工具界内 → `allow`（免重复询问）；界外 → `ask`；Bash 越界写启发式 → `ask` |
 
-两能力相互独立，各自可关。自定义危险规则 `custom_danger_rules`
-（一行一条正则）仅在危险命令门开启时生效。
+两能力相互独立，各自可关。规则清单 `danger_rules`（一行一条：内置
+规则 ID 或自定义正则）仅在危险命令门开启时生效；默认启用全部内置
+规则，用户可删除不想要的行（协议见 §6.1）。
 
 ## 3. 与宿主（ZCode）的关系与硬约束
 
@@ -58,7 +59,7 @@ zcode-workspace-guard/
 ```
 1. 环境变量 ZCODE_WORKSPACE_GUARD_CONFIG   # 指向 JSON 文件（测试/开发注入用）
 2. ~/.zcode/cli/config.json 的 plugins 段  # 宿主 userConfig 持久化位置（键名以实测为准）
-3. 内置默认值                               # sandbox_enabled=true, danger_gate_enabled=true, custom_danger_rules=""
+3. 内置默认值                               # sandbox_enabled=true, danger_gate_enabled=true, danger_rules=""（空=启用全部内置规则）
 ```
 
 高优先级来源存在某键时覆盖低优先级同名键；全部异常（文件不存在/解析
@@ -82,8 +83,8 @@ writable_roots = dedupe([
 
 **Bash**（`tool_input.command`）：
 
-1. 危险门开启：内置规则命中 → `ask`；`custom_danger_rules` 逐行编译
-   （编译失败跳过该行），命中 → `ask`
+1. 危险门开启：解析 `danger_rules` 清单（§6.1）——启用的内置规则命中
+   → `ask`；自定义正则逐行编译（失败跳过该行），命中 → `ask`
 2. 围栏开启：越界写启发式命中 → `ask`
 3. 否则不输出决策（放行给宿主按其模式处理）
 
@@ -107,15 +108,27 @@ writable_roots = dedupe([
 
 ## 6. 规则明细
 
-### 6.1 危险命令内置规则（token 级精确匹配，目标须与危险模式完全相等）
+### 6.1 危险命令规则清单（`danger_rules`）
 
-| 类别 | 模式 |
-| --- | --- |
-| rm 家族 | 命令含 `rm`（或 `*/rm`）+ 递归/强制旗标（`-[rf…]`/`--recursive`/`--force`）+ 危险目标 token：`/`、`//`、`/*`、`~`、`~/`、`~/*`、`~/.`、`$HOME`、`${HOME}`、`*`、`**`、`.*`、`./*`、`*/*`、`.`、`./`、`..`、`../`、`/Users/<name>`（整级家目录） |
-| rm 旗标逃逸 | 命令含 `--no-preserve-root` |
-| 抹设备 | `dd` + `of=/dev/…`；`mkfs(.*)`；`diskutil eraseDisk|eraseVolume|deleteContainer` |
-| 权限污染 | `chmod`/`chown` + `-R` + 危险目标 token（根/家目录级） |
-| fork 炸弹 | `:(){ :|:& };:` 变体（容空白） |
+危险命令门由**规则清单**驱动，一行一条：
+
+- 空白行与 `#` 开头的注释行跳过
+- 等于内置规则 ID 的行 → 启用对应内置判定（见下表）
+- 其余行 → 自定义正则（编译失败跳过），命中命令文本即 `ask`
+- **值为空或缺失 = 启用全部内置规则**（安全默认；清空即重置为全默认）
+- 拼错的 ID 会被当作正则处理（通常永不命中），等效于停用该规则
+
+内置规则（token 级精确匹配，目标须与危险模式完全相等）：
+
+| 规则 ID | 类别 | 模式 |
+| --- | --- | --- |
+| `fork-bomb` | fork 炸弹 | `:(){ :|:& };:` 变体（容空白） |
+| `dd-device` | 抹设备 | `dd` + `of=/dev/…` |
+| `mkfs` | 抹设备 | `mkfs(.*)` |
+| `diskutil-wipe` | 抹设备 | `diskutil eraseDisk\|eraseVolume\|deleteContainer` |
+| `no-preserve-root` | rm 旗标逃逸 | 命令含 `--no-preserve-root` |
+| `rm-destructive` | rm 家族 | 命令含 `rm`（或 `*/rm`）+ 递归/强制旗标（`-[rf…]`/`--recursive`/`--force`）+ 危险目标 token：`/`、`//`、`/*`、`~`、`~/`、`~/*`、`~/.`、`$HOME`、`${HOME}`、`*`、`**`、`.*`、`./*`、`*/*`、`.`、`./`、`..`、`../`、`/Users/<name>`（整级家目录） |
+| `chmod-recursive` | 权限污染 | `chmod`/`chown` + `-R` + 危险目标 token（根/家目录级） |
 
 日常放行（必须零误报）：`rm -rf node_modules`、`rm -rf <具体路径>`、
 `rm -rf packages/*/dist`、`chmod -R 755 ./src` 等。

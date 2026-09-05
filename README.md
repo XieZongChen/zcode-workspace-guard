@@ -48,7 +48,7 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 | --- | --- | --- | --- |
 | `danger_gate_enabled` | boolean | `true` | 危险命令门开关 |
 | `sandbox_enabled` | boolean | `true` | 项目围栏开关，关闭后仅剩危险命令门 |
-| `custom_danger_rules` | string | 空 | 自定义危险规则，一行一条正则，命令文本命中即人工确认；仅危险命令门开启时生效。例：`git\s+push\s+--force` |
+| `danger_rules` | string | 全部内置规则 | 危险规则清单，一行一条：内置规则 ID 或自定义正则（如 `git\s+push\s+--force`）。删除某行即停用该规则，清空恢复全部默认；仅危险命令门开启时生效 |
 
 ## 已知局限
 
