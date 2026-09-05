@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """workspace-guard：ZCode PreToolUse 守门脚本。
 
-设计文档见仓库 DESIGN.md；测试规划见 TEST_PLAN.md。
-当前已落地：危险命令门（内置规则）。后续里程碑：工作区围栏、Bash 启发式、
-配置取值链。
+设计文档见仓库 docs/DESIGN.md；测试规划见 docs/TEST_PLAN.md。
+当前已落地：危险命令门（内置规则）、工作区围栏-文件工具。后续里程碑：
+Bash 越界启发式、配置取值链。
 """
 import json
+import os
 import re
 import sys
 
 TAG = "[workspace-guard:"
+
+FILE_TOOLS = ("Write", "Edit", "ApplyPatch")
 
 # ---- 危险命令门：规则定义（token 级精确匹配，宁可漏报不可误报）----
 
@@ -67,6 +70,65 @@ def check_danger(command):
             return "chmod/chown 递归修改根目录或家目录权限"
 
     return None
+
+
+# ---- 工作区围栏：可写根与路径规范化（见 DESIGN.md §5.2/§6.3）----
+
+
+def workspace_root():
+    """工作区根来自宿主注入的环境变量；缺失返回 None（围栏降级）。"""
+    env = os.environ.get("ZCODE_PROJECT_DIR") or os.environ.get("CLAUDE_PROJECT_DIR")
+    if not env:
+        return None
+    return os.path.realpath(env)
+
+
+def writable_roots(root):
+    """可写根集合：工作区根 + /tmp + $TMPDIR，全部 realpath 规范化去重。"""
+    roots = [root, "/tmp", os.environ.get("TMPDIR", "")]
+    seen = []
+    for r in roots:
+        if not r:
+            continue
+        p = os.path.realpath(r)
+        if p not in seen:
+            seen.append(p)
+    return seen
+
+
+def canonical_path(path):
+    """规范化目标路径：自目标起逐级上溯找最深存在的祖先，realpath 后拼回
+    剩余段。防符号链接偷渡（TOCTOU）：解析发生在判定时点。"""
+    path = os.path.expanduser(path)
+    tail = []
+    p = path
+    while True:
+        if os.path.exists(p):
+            return os.path.join(os.path.realpath(p), *tail) if tail else os.path.realpath(p)
+        rest = os.path.basename(p)
+        if rest in ("", "/", "."):
+            return p  # 上溯到头也不存在，按字面返回
+        tail.insert(0, rest)
+        p = os.path.dirname(p)
+
+
+def is_under(path, root):
+    return path == root or path.startswith(root + os.sep)
+
+
+def fence_file_tool(path, root):
+    """文件工具围栏：返回 (decision, reason) 或 (None, None) 表示围栏不适用。"""
+    if not path or not root:
+        return None, None
+    roots = writable_roots(root)
+    target = canonical_path(path)
+    if target == "/dev/null" or any(is_under(target, r) for r in roots):
+        return "allow", "工作区内写入，放行"
+    return (
+        "ask",
+        "写入目标在工作区外，需要人工确认。目标：%s。可写根：%s。"
+        "请改用工作区内路径，或向用户说明理由并获得批准。" % (target, "、".join(roots)),
+    )
 
 
 def decide(payload):
