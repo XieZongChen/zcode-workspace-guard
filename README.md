@@ -81,7 +81,7 @@ fork-bomb;dd-device;mkfs;diskutil-wipe;no-preserve-root;rm-destructive;chmod-rec
 ## 开发
 
 ```bash
-python3 tests/run_tests.py   # 全量回归（51 例），提交前必须全绿
+python3 tests/run_tests.py   # 全量回归，提交前必须全绿
 ```
 
 协作约定见 [AGENTS.md](AGENTS.md)，测试规划见 [docs/TEST_PLAN.md](docs/TEST_PLAN.md)。
