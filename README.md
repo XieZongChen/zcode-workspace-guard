@@ -6,7 +6,7 @@ ZCode 插件 **workspace-guard**：在每条命令执行、每次文件写入之
 
 **危险命令门**（默认开启）
 
-命中以下模式的命令转为人工确认：`rm -rf` 作用于根目录、家目录或通配整个目录（`/`、`~`、`*` 等）；`dd` 写入 `/dev/…`；`mkfs`；`diskutil eraseDisk` / `eraseVolume` / `deleteContainer`；fork 炸弹；`chmod -R` / `chown -R` 作用于根或家目录；`--no-preserve-root`。批准一次执行一次，拒绝则不执行。该检查与宿主权限模式无关，"完全访问"模式下同样生效。
+命中以下模式的命令转为人工确认：`rm -rf` 作用于根目录、`home` 目录或通配整个目录（`/`、`~`、`*` 等）；`dd` 写入 `/dev/…`；`mkfs`；`diskutil eraseDisk` / `eraseVolume` / `deleteContainer`；fork 炸弹；`chmod -R` / `chown -R` 作用于根或 `home` 目录；`--no-preserve-root`。批准一次执行一次，拒绝则不执行。该检查与宿主权限模式无关，"完全访问"模式下同样生效。
 
 **项目围栏**（默认开启）
 

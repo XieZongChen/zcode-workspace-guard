@@ -1,6 +1,6 @@
 [
   {"name": "B1 重定向到界外文件需确认", "tool_name": "Bash", "tool_input": {"command": "echo x > {OUT}/f"}, "expect": {"decision": "ask", "reason_contains": "越界"}},
-  {"name": "B2 追加重定向到家目录需确认", "tool_name": "Bash", "tool_input": {"command": "echo x >> ~/desktop-note"}, "expect": {"decision": "ask", "reason_contains": "越界"}},
+  {"name": "B2 追加重定向到home 目录需确认", "tool_name": "Bash", "tool_input": {"command": "echo x >> ~/desktop-note"}, "expect": {"decision": "ask", "reason_contains": "越界"}},
   {"name": "B3 重定向到 /tmp 放行", "tool_name": "Bash", "tool_input": {"command": "echo x > {TMP}/f"}, "expect": {"decision": null}},
   {"name": "B4 /dev/null 白名单加界内目标放行", "tool_name": "Bash", "tool_input": {"command": "cmd 2>/dev/null > {WS}/log"}, "expect": {"decision": null}},
   {"name": "B5 cp 目的参数界外需确认", "tool_name": "Bash", "tool_input": {"command": "cp {WS}/a {OUT}/b"}, "expect": {"decision": "ask", "reason_contains": "越界"}},

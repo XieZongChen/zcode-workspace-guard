@@ -1,8 +1,8 @@
 [
   {"name": "D1 rm -rf 根目录", "tool_name": "Bash", "tool_input": {"command": "rm -rf /"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D2 rm -rf 通配当前目录", "tool_name": "Bash", "tool_input": {"command": "rm -rf *"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
-  {"name": "D3 sudo rm -rf 家目录", "tool_name": "Bash", "tool_input": {"command": "sudo rm -rf ~"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
-  {"name": "D4 rm 家目录通配", "tool_name": "Bash", "tool_input": {"command": "rm -rf ~/*"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
+  {"name": "D3 sudo rm -rf home 目录", "tool_name": "Bash", "tool_input": {"command": "sudo rm -rf ~"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
+  {"name": "D4 rm home 目录通配", "tool_name": "Bash", "tool_input": {"command": "rm -rf ~/*"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D5 rm 当前目录", "tool_name": "Bash", "tool_input": {"command": "rm -rf ."}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D6 rm HOME 变量", "tool_name": "Bash", "tool_input": {"command": "rm -rf $HOME"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D7 组合命令藏 rm 越界", "tool_name": "Bash", "tool_input": {"command": "cd /tmp && rm -rf /*"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
@@ -12,7 +12,7 @@
   {"name": "D11 fork 炸弹", "tool_name": "Bash", "tool_input": {"command": ":(){ :|:& };:"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D12 chmod -R 777 根", "tool_name": "Bash", "tool_input": {"command": "sudo chmod -R 777 /"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
   {"name": "D13 no-preserve-root", "tool_name": "Bash", "tool_input": {"command": "rm -rf --no-preserve-root /"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
-  {"name": "D14 rm 整级用户家目录", "tool_name": "Bash", "tool_input": {"command": "rm -rf /Users/someuser"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
+  {"name": "D14 rm 整级用户home 目录", "tool_name": "Bash", "tool_input": {"command": "rm -rf /Users/someuser"}, "expect": {"decision": "ask", "reason_contains": "危险"}},
 
   {"name": "D15 日常放行 rm node_modules", "tool_name": "Bash", "tool_input": {"command": "rm -rf node_modules && pnpm install"}, "expect": {"decision": null}},
   {"name": "D16 日常放行 rm /tmp 具体路径", "tool_name": "Bash", "tool_input": {"command": "rm -rf {TMP}/test-dir"}, "expect": {"decision": null}},

@@ -20,7 +20,7 @@
     `ZCODE_PROJECT_DIR`）
   - `{OUT}` —— 项目之外的临时目录（界外路径构造用）
   - `{TMP}` —— 真实 `/tmp`（可写根内路径构造用）
-  - `{HOME}` —— 运行机器的真实家目录（界外路径构造用，不落盘进用例文件）
+  - `{HOME}` —— 运行机器的真实`home` 目录（界外路径构造用，不落盘进用例文件）
 - **配置注入（全量基线，测试封闭）**：每个用例都注入一份基线配置
   （全部配置键，与 guard 默认值等价），用例自带的 `"config": {...}`
   在基线上覆盖，经 `ZCODE_WORKSPACE_GUARD_CONFIG` 走取值链第 1 级；
@@ -50,7 +50,7 @@
 | 编号 | 用例 | 期望 |
 | --- | --- | --- |
 | D1–D13 | `rm -rf /`、`rm -rf *`、`sudo rm -rf ~`、`rm -rf ~/*`、`rm -rf .`、`rm -rf $HOME`、`cd /tmp && rm -rf /*`、`dd if=/dev/zero of=/dev/disk3`、`mkfs.apfs /dev/disk2s1`、`diskutil eraseDisk APFS T /dev/disk4`、`:(){ :\|:& };:`、`sudo chmod -R 777 /`、`rm -rf --no-preserve-root /` | `ask`，reason 含"危险" |
-| D14 | `rm -rf /Users/<某用户名>`（整级家目录） | `ask` |
+| D14 | `rm -rf /Users/<某用户名>`（整级`home` 目录） | `ask` |
 | D15–D20 | 日常放行回归：`rm -rf node_modules && pnpm install`、`rm -rf {TMP}/test-dir`、`rm -rf apps/daemon/tmp`、`rm -rf packages/*/dist`、`chmod -R 755 ./src`、`git push --force origin main` | 无输出 |
 
 ### M3 项目围栏-文件工具（cases/file_fence.json）
@@ -60,7 +60,7 @@
 | F1 | Write 界内文件 `{WS}/src/a.ts` | `allow` |
 | F2 | Edit 界内深层且父目录不存在 `{WS}/a/b/c/new.ts` | `allow`（逐级上溯规范化） |
 | F3 | Write 界外 `{OUT}/evil.txt` | `ask`，reason 含"项目"与可写根提示 |
-| F4 | Write 界外家目录路径（`~/xx` 展开为真实家目录，非 `{WS}` 内） | `ask` |
+| F4 | Write 界外`home` 目录路径（`~/xx` 展开为真实`home` 目录，非 `{WS}` 内） | `ask` |
 | F5 | Write `/tmp/scratch.txt` | `allow` |
 | F6 | tool_input 用 `path` 键而非 `file_path` | 同 F1 语义 |
 | F7 | ApplyPatch 工具名 | 同 F1 语义 |

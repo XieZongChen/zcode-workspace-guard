@@ -25,7 +25,7 @@ DANGEROUS_TARGET = re.compile(
       | \$(?:\{HOME\}|HOME)
       | \*|\*\*|\.\*|\./\*|\*/\*
       | \.|\./|\.\.|\.\./
-      | /Users/[^/]+            # 整级用户家目录（macOS 布局，通配任意用户名）
+      | /Users/[^/]+            # 整级用户home 目录（macOS 布局，通配任意用户名）
     )$""",
     re.X,
 )
@@ -48,7 +48,7 @@ def _rule_rm_destructive(command):
     has_rm = any(t == "rm" or t.endswith("/rm") for t in tokens)
     has_flag = any(RM_FLAG.match(t) for t in tokens)
     if has_rm and has_flag:
-        return "rm 递归/强制删除 根目录、家目录或通配整个目录"
+        return "rm 递归/强制删除 根目录、home 目录或通配整个目录"
     return None
 
 
@@ -61,7 +61,7 @@ def _rule_chmod_recursive(command):
         t in ("chmod", "chown") or t.endswith(("/chmod", "/chown")) for t in tokens
     )
     if has_chmod and any(CHMOD_FLAG.match(t) for t in tokens):
-        return "chmod/chown 递归修改根目录或家目录权限"
+        return "chmod/chown 递归修改根目录或home 目录权限"
     return None
 
 

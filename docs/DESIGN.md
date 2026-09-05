@@ -87,7 +87,7 @@ writable_roots = dedupe([
 项目下并列多个文件夹（如多个子项目）且任务工作目录在其中之一时，
 其余文件夹会被围栏判为界外。此场景由用户在 `extra_writable_roots`
 中显式声明（如项目根文件夹），不做自动推断（曾考虑"向上找含
-`.zcode` 的祖先"，但家目录同样含 `.zcode`，会把家目录静默纳入
+`.zcode` 的祖先"，但`home` 目录同样含 `.zcode`，会把`home` 目录静默纳入
 可写根，否决）。
 
 实测补充（宿主 v3.11.2，PreToolUse 载荷全量字段盘点）：stdin 含
@@ -156,8 +156,8 @@ config.json 时换行分隔同样接受（宽容解析）。默认值为单行�
 | `mkfs` | 抹设备 | `mkfs(.*)` |
 | `diskutil-wipe` | 抹设备 | `diskutil eraseDisk\|eraseVolume\|deleteContainer` |
 | `no-preserve-root` | rm 旗标逃逸 | 命令含 `--no-preserve-root` |
-| `rm-destructive` | rm 家族 | 命令含 `rm`（或 `*/rm`）+ 递归/强制旗标（`-[rf…]`/`--recursive`/`--force`）+ 危险目标 token：`/`、`//`、`/*`、`~`、`~/`、`~/*`、`~/.`、`$HOME`、`${HOME}`、`*`、`**`、`.*`、`./*`、`*/*`、`.`、`./`、`..`、`../`、`/Users/<name>`（整级家目录） |
-| `chmod-recursive` | 权限污染 | `chmod`/`chown` + `-R` + 危险目标 token（根/家目录级） |
+| `rm-destructive` | rm 家族 | 命令含 `rm`（或 `*/rm`）+ 递归/强制旗标（`-[rf…]`/`--recursive`/`--force`）+ 危险目标 token：`/`、`//`、`/*`、`~`、`~/`、`~/*`、`~/.`、`$HOME`、`${HOME}`、`*`、`**`、`.*`、`./*`、`*/*`、`.`、`./`、`..`、`../`、`/Users/<name>`（整级`home` 目录） |
+| `chmod-recursive` | 权限污染 | `chmod`/`chown` + `-R` + 危险目标 token（根/`home` 目录级） |
 
 日常放行（必须零误报）：`rm -rf node_modules`、`rm -rf <具体路径>`、
 `rm -rf packages/*/dist`、`chmod -R 755 ./src` 等。
@@ -194,7 +194,7 @@ realpath 后拼回剩余段，再做包含比较（包含比较：`p == root` �
 | --- | --- | --- | --- | --- |
 | `rm -rf *` 等危险命令 | `ask` | —（危险门优先） | `ask` | 放行 |
 | 文件工具写项目内 | 不适用 | `allow`（跳过宿主例行询问） | — | 放行 |
-| 文件工具写家目录/系统路径 | 不适用 | — | `ask` | 放行 |
+| 文件工具写`home` 目录/系统路径 | 不适用 | — | `ask` | 放行 |
 | `echo x > /tmp/f` | 放行 | 放行（/tmp 在可写根） | — | 放行 |
 | `echo x > ~/某文件` | 放行 | — | `ask` | 放行 |
 | `rm -rf node_modules` | 放行 | 放行 | — | 放行 |

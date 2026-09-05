@@ -13,7 +13,7 @@ description: Use when a tool call is denied or questioned with a "[workspace-gua
 
 - 允许写入：当前项目根目录、`/tmp`、`$TMPDIR`，以及用户配置的额外
   可写根（`extra_writable_roots`）
-- 越界写入（家目录、系统路径、其他项目）会触发 `ask` 人工确认——确认框
+- 越界写入（`home` 目录、系统路径、其他项目）会触发 `ask` 人工确认——确认框
   就是用户的审批通道：用户批准则这一次放行，拒绝则你必须换方案
 - 收到"写入目标在项目外"时，首选做法是**改用项目内路径**（如把
   输出写到项目下的临时文件）；确需越界时向用户说明理由，由确认框决定
@@ -23,7 +23,7 @@ description: Use when a tool call is denied or questioned with a "[workspace-gua
 ## 危险命令门（常开）
 
 毁灭性命令（`rm -rf /`、`rm -rf ~`、`rm -rf *`、`dd of=/dev/…`、
-`mkfs`、`diskutil eraseDisk`、fork 炸弹、`chmod -R` 作用于根/家目录等）
+`mkfs`、`diskutil eraseDisk`、fork 炸弹、`chmod -R` 作用于根/`home` 目录等）
 一律触发人工确认，与权限模式无关。这类操作没有绕过方式——向用户展示
 完整命令并等待确认结果。
 
