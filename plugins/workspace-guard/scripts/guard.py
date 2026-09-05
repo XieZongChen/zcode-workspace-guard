@@ -133,13 +133,62 @@ def fence_file_tool(path, root):
     )
 
 
+# ---- Bash 越界写启发式（enforcement: heuristic，见 DESIGN.md §6.2）----
+
+# 重定向目标：> 、>> 、&> 、2> 等；捕获目标 token
+REDIRECT = re.compile(r"(?:\d)?>>?\s*([^\s;|&]+)|&>>?\s*([^\s;|&]+)")
+
+# 命令动词 → 其后绝对路径参数的检查范围（cp/rsync/install 只查目的参数）
+VERB_DEST_ONLY = ("cp", "rsync", "install")
+VERB_ALL_ARGS = ("mv", "rm", "tee")
+
+SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\|")
+
+
+def _abs_outside(path, roots):
+    """路径为绝对路径且规范化后不在可写根（且非 /dev/null）→ True。"""
+    p = os.path.expandvars(os.path.expanduser(path))
+    if not p.startswith("/") or p == "/dev/null":
+        return False
+    canonical = canonical_path(p)
+    return not any(is_under(canonical, r) for r in roots)
+
+
+def check_bash_fence(command, root):
+    """Bash 越界写启发式：命中返回原因字符串，否则 None。"""
+    if not root:
+        return None
+    roots = writable_roots(root)
+
+    for m in REDIRECT.finditer(command):
+        target = m.group(1) or m.group(2)
+        if target and _abs_outside(target, roots):
+            return "重定向写入工作区外目标 %s" % target
+
+    for segment in SEGMENT_SPLIT.split(command):
+        tokens = segment.split()
+        for i, tok in enumerate(tokens):
+            verb = tok.rsplit("/", 1)[-1]
+            if verb in VERB_DEST_ONLY:
+                args = [t for t in tokens[i + 1:] if not t.startswith("-")]
+                if args and _abs_outside(args[-1], roots):
+                    return "%s 的目的参数在工作区外：%s" % (verb, args[-1])
+            elif verb in VERB_ALL_ARGS:
+                for arg in tokens[i + 1:]:
+                    if not arg.startswith("-") and _abs_outside(arg, roots):
+                        return "%s 作用于工作区外路径：%s" % (verb, arg)
+
+    return None
+
+
 def decide(payload):
     """返回 hookSpecificOutput 决策 dict，或 None（放行，不输出）。"""
     tool_name = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
 
     if tool_name == "Bash":
-        reason = check_danger(tool_input.get("command", ""))
+        command = tool_input.get("command", "")
+        reason = check_danger(command)
         if reason:
             return {
                 "hookSpecificOutput": {
@@ -147,6 +196,19 @@ def decide(payload):
                     "permissionDecision": "ask",
                     "permissionDecisionReason": (
                         TAG + " 危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。]" % reason
+                    ),
+                }
+            }
+        reason = check_bash_fence(command, workspace_root())
+        if reason:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "ask",
+                    "permissionDecisionReason": (
+                        TAG + " Bash 命令疑似越界写入（启发式检测，enforcement: heuristic），"
+                        "需要人工确认。%s。可写根：%s。请改用工作区内路径，或向用户说明理由。]"
+                        % (reason, "、".join(writable_roots(workspace_root())))
                     ),
                 }
             }
