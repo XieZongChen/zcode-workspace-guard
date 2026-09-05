@@ -88,6 +88,15 @@ writable_roots = dedupe([
 不做自动推断（曾考虑"向上找含 .zcode 的祖先"，但家目录同样含
 `.zcode`，会把家目录静默纳入可写根，否决）。
 
+实测补充（宿主 v3.11.2，PreToolUse 载荷全量字段盘点）：stdin 含
+`cwd`、`hook_event_name`、`tool_name`、`tool_input`、`tool_use_id`、
+`permission_mode`、`session_id`、`transcript_path`、`riskLevel`、
+`sideEffectScope`、`timestamp`、`toolCallId`、`traceId`、`turnId`、
+`agent_type`——**无工作区级路径字段**；环境变量中项目路径仅
+`ZCODE_PROJECT_DIR`（= 会话 cwd）。同一工作区内不同任务的 cwd 可以
+不同（任务根可为子项目目录），故兄弟目录的纳入只能走
+`extra_writable_roots`，待宿主未来提供工作区变量再自动化。
+
 ### 5.3 判定分支
 
 **Bash**（`tool_input.command`）：
