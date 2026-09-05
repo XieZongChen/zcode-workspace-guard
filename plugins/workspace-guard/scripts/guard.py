@@ -181,52 +181,158 @@ def check_bash_fence(command, root):
     return None
 
 
+# ---- 配置取值链（见 DESIGN.md §5.1：env 注入 > 宿主 config.json > 默认值）----
+
+CONFIG_KEYS = ("sandbox_enabled", "danger_gate_enabled", "custom_danger_rules")
+DEFAULT_CONFIG = {
+    "sandbox_enabled": True,
+    "danger_gate_enabled": True,
+    "custom_danger_rules": "",
+}
+CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
+
+
+def _as_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "0", "no", "off", "")
+    return bool(value)
+
+
+def _find_plugin_config(plugins):
+    """在宿主 config.json 的 plugins 段中容错查找本插件的 userConfig 值。
+
+    宿主持久化键名未文档化：先探测常见候选键（options/config/pluginConfig
+    下键名含 workspace-guard 的分支），再退化为子树扫描（任何包含本插件
+    已知配置键的 dict）。找到返回 dict，否则 None。
+    """
+    candidates = []
+    for section in ("options", "config", "pluginConfig", "pluginOptions"):
+        sub = plugins.get(section)
+        if isinstance(sub, dict):
+            for key, value in sub.items():
+                if "workspace-guard" in key and isinstance(value, dict):
+                    candidates.append(value)
+
+    def scan(node, depth):
+        if depth > 4 or not isinstance(node, dict):
+            return None
+        if any(k in node for k in CONFIG_KEYS):
+            return node
+        for value in node.values():
+            found = scan(value, depth + 1)
+            if found is not None:
+                return found
+        return None
+
+    for cand in candidates:
+        if any(k in cand for k in CONFIG_KEYS):
+            return cand
+    return scan(plugins, 0)
+
+
+def load_config():
+    """三级取值链，高优先级覆盖低优先级；任何异常回落默认值。"""
+    cfg = dict(DEFAULT_CONFIG)
+
+    # 第 2 级：宿主 config.json 的插件配置段
+    host_path = os.path.join(os.path.expanduser("~"), ".zcode", "cli", "config.json")
+    try:
+        with open(host_path) as f:
+            host = json.load(f)
+        found = _find_plugin_config(host.get("plugins", {}))
+        if found:
+            for k in CONFIG_KEYS:
+                if k in found:
+                    cfg[k] = found[k]
+    except Exception:
+        pass
+
+    # 第 1 级：环境变量注入（测试/开发用）
+    env_path = os.environ.get(CONFIG_ENV)
+    if env_path:
+        try:
+            with open(env_path) as f:
+                override = json.load(f)
+            for k in CONFIG_KEYS:
+                if k in override:
+                    cfg[k] = override[k]
+        except Exception:
+            pass
+
+    cfg["sandbox_enabled"] = _as_bool(cfg["sandbox_enabled"])
+    cfg["danger_gate_enabled"] = _as_bool(cfg["danger_gate_enabled"])
+    cfg["custom_danger_rules"] = (
+        cfg["custom_danger_rules"] if isinstance(cfg["custom_danger_rules"], str) else ""
+    )
+    return cfg
+
+
+def check_custom_rules(command, rules_text):
+    """自定义危险规则：一行一条正则，编译失败跳过该行。命中返回该行。"""
+    for line in rules_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            if re.search(line, command):
+                return line
+        except re.error:
+            continue  # 非法正则跳过，不阻塞会话
+    return None
+
+
 def decide(payload):
     """返回 hookSpecificOutput 决策 dict，或 None（放行，不输出）。"""
     tool_name = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
+    cfg = load_config()
 
     if tool_name == "Bash":
         command = tool_input.get("command", "")
-        reason = check_danger(command)
-        if reason:
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "ask",
-                    "permissionDecisionReason": (
-                        TAG + " 危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。]" % reason
-                    ),
-                }
-            }
-        reason = check_bash_fence(command, workspace_root())
-        if reason:
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "ask",
-                    "permissionDecisionReason": (
-                        TAG + " Bash 命令疑似越界写入（启发式检测，enforcement: heuristic），"
-                        "需要人工确认。%s。可写根：%s。请改用工作区内路径，或向用户说明理由。]"
-                        % (reason, "、".join(writable_roots(workspace_root())))
-                    ),
-                }
-            }
+        if cfg["danger_gate_enabled"]:
+            reason = check_danger(command)
+            if reason:
+                return _ask("危险命令需要人工确认：%s。请先向用户展示完整命令并获得确认。" % reason)
+            rule = check_custom_rules(command, cfg["custom_danger_rules"])
+            if rule:
+                return _ask("自定义危险规则命中（%s）。请先向用户展示完整命令并获得确认。" % rule)
+        if cfg["sandbox_enabled"]:
+            root = workspace_root()
+            reason = check_bash_fence(command, root)
+            if reason:
+                return _ask(
+                    "Bash 命令疑似越界写入（启发式检测，enforcement: heuristic），"
+                    "需要人工确认。%s。可写根：%s。请改用工作区内路径，或向用户说明理由。"
+                    % (reason, "、".join(writable_roots(root)) if root else "未知")
+                )
 
     if tool_name in FILE_TOOLS:
-        root = workspace_root()
-        target = tool_input.get("file_path") or tool_input.get("path")
-        decision, reason = fence_file_tool(target, root)
-        if decision:
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": decision,
-                    "permissionDecisionReason": TAG + " %s]" % reason,
+        if cfg["sandbox_enabled"]:
+            root = workspace_root()
+            target = tool_input.get("file_path") or tool_input.get("path")
+            decision, reason = fence_file_tool(target, root)
+            if decision:
+                return {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": decision,
+                        "permissionDecisionReason": TAG + " %s]" % reason,
+                    }
                 }
-            }
 
     return None
+
+
+def _ask(reason):
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": TAG + " %s]" % reason,
+        }
+    }
 
 
 def main():

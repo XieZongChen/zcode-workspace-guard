@@ -81,12 +81,14 @@
 
 | 编号 | 用例 | 期望 |
 | --- | --- | --- |
-| C1 | config 注入 `danger_gate_enabled=false` + `rm -rf /` | 无输出（门关） |
+| C1 | config 注入 `danger_gate_enabled=false` + fork 炸弹（无路径特征） | 无输出（门关，围栏无路径可查） |
 | C2 | config 注入 `danger_gate_enabled=false` + `sandbox_enabled=true` + 界外文件写入 | 仍 `ask`（两能力独立） |
 | C3 | config 注入 `custom_danger_rules` 含 `git\s+push\s+--force` + 该命令 | `ask`，reason 含"自定义" |
 | C4 | 自定义规则含一行非法正则 + 一行合法规则，命令命中合法行 | `ask`（非法行跳过不崩） |
-| C5 | config 注入 `sandbox_enabled=false` + 界外文件写入 + 界外重定向 | 全部无输出（围栏关） |
+| C5a | config 注入 `sandbox_enabled=false` + 界外文件写入 | 无输出（围栏关） |
+| C5b | config 注入 `sandbox_enabled=false` + 界外重定向 | 无输出（围栏关） |
 | C6 | `ZCODE_WORKSPACE_GUARD_CONFIG` 指向不存在文件 + 危险命令 | 仍 `ask`（回落默认值） |
+| C7 | config 注入 `danger_gate_enabled=false` + `rm -rf /` | 仍 `ask`（围栏拦：`/` 在界外，两层独立叠加） |
 
 ## 3. 回归纪律
 

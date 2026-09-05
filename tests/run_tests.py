@@ -89,6 +89,9 @@ def run_case(session, case, index):
         with open(cfg_path, "w") as f:
             json.dump(case["config"], f)
         env[CONFIG_ENV] = cfg_path
+    elif case.get("config_missing"):
+        # C6：env 指向不存在的配置文件，验证回落默认值
+        env[CONFIG_ENV] = os.path.join(session.out, "no-such-config.json")
 
     if "stdin_raw" in case:
         stdin_data = case["stdin_raw"]
