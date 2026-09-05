@@ -21,13 +21,17 @@
   - `{OUT}` —— 项目之外的临时目录（界外路径构造用）
   - `{TMP}` —— 真实 `/tmp`（可写根内路径构造用）
   - `{HOME}` —— 运行机器的真实家目录（界外路径构造用，不落盘进用例文件）
-- **配置注入**：用例可带 `"config": {...}`，运行器写入临时 JSON 并设置
-  `ZCODE_WORKSPACE_GUARD_CONFIG`（走取值链第 1 级，测试封闭、不触碰
-  宿主真实配置）
+- **配置注入（全量基线，测试封闭）**：每个用例都注入一份基线配置
+  （三项配置全量，与 guard 默认值等价），用例自带的 `"config": {...}`
+  在基线上覆盖，经 `ZCODE_WORKSPACE_GUARD_CONFIG` 走取值链第 1 级。
+  由此 guard 不会读本机真实 `~/.zcode/cli/config.json` 保存过的值——
+  0.3.0 事故教训：宿主 UI 保存的 mangled 值曾让 D 组在本机全红
 - **环境隔离**：guard 子进程的 `TMPDIR` 被重定向到运行期受控目录
   （否则 `{OUT}` 会天然落在可写根 `$TMPDIR` 内导致围栏用例失效）；
-  测试进程注入最小 env（PATH/HOME/受控 TMPDIR +
-  ZCODE_PROJECT_DIR/ZCODE_WORKSPACE_GUARD_CONFIG），不继承无关变量
+  `HOME` 同样指向受控基目录（取值链第 2 级 `~/.zcode/cli/config.json`
+  随之失效，本机宿主配置无法渗入）；测试进程注入最小 env
+  （PATH/受控 HOME/受控 TMPDIR + ZCODE_PROJECT_DIR/
+  ZCODE_WORKSPACE_GUARD_CONFIG），不继承无关变量
 
 ## 2. 用例矩阵
 
@@ -92,11 +96,15 @@
 | C8 | config 注入 `danger_rules=""` + `rm -rf /` | `ask`，reason 含"危险"（空=启用全部内置规则） |
 | C9 | config 注入 `danger_rules="fork-bomb"` + `rm -rf /` | `ask`，reason 含"越界"（`rm-destructive` 已删，围栏兜底） |
 | C10 | config 注入 `danger_rules` 仅注释行 + fork 炸弹 | 无输出（清单非空但无规则） |
-| C11 | `danger_rules` 混排：内置 ID + 自定义正则，命令命中自定义行 | `ask`，reason 含"自定义" |
+| C11 | `danger_rules` 换行分隔混排（手编 config.json 场景，宽容解析） | `ask`，reason 含"自定义" |
+| C12 | `danger_rules` 分号分隔混排（UI 单行输入的标准格式） | `ask`，reason 含"自定义" |
+| C13 | 分号清单夹注释段 `fork-bomb;#备注;dd-device`，命令命中 dd | `ask`，reason 含"危险"（注释段跳过） |
 
 **元一致性测试**（`run_tests.py` 内置，随每次回归执行）：plugin.json
 `danger_rules` 的默认值按清单协议解析出的规则 ID 集合，必须与
-guard.py `BUILTIN_RULES` 的键集合完全一致——防止两处清单漂移。
+guard.py `BUILTIN_RULES` 的键集合完全一致，**且默认值必须单行、
+不含 `#`**——防止两处清单漂移，并锁定"UI 单行输入保存剥换行导致
+清单损坏"这类回归（0.2.0 事故，见 DESIGN.md §6.1）。
 
 ## 3. 回归纪律
 

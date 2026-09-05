@@ -48,25 +48,25 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 | --- | --- | --- | --- |
 | `danger_gate_enabled` | boolean | `true` | 危险命令门开关 |
 | `sandbox_enabled` | boolean | `true` | 项目围栏开关，关闭后仅剩危险命令门 |
-| `danger_rules` | string | 全部内置规则 | 危险规则清单，一行一条：内置规则 ID 或自定义正则（如 `git\s+push\s+--force`）。删除某行即停用该规则，清空恢复全部默认；仅危险命令门开启时生效 |
+| `danger_rules` | string | 全部内置规则 | 危险规则清单，分号分隔：内置规则 ID 与自定义正则，如 `fork-bomb;dd-device;git\s+push\s+--force`。删除某段即停用该规则，清空恢复全部默认；仅危险命令门开启时生效 |
 
-清单输入方式（一行一条，行分两种身份）：
+清单输入方式（分号 `;` 分隔——设置界面是单行输入框，换行分隔无法在界面保存往返中存活）：
 
 ```text
-# 注释行，不参与匹配
-fork-bomb              # 内置规则 ID：删除此行即停用对应拦截
-rm-destructive
-git\s+push\s+--force   # 自定义正则：命令文本命中即人工确认
-^sudo\s+reboot$
+fork-bomb;dd-device;mkfs;diskutil-wipe;no-preserve-root;rm-destructive;chmod-recursive
 ```
+
+- 删除某段（如 `;mkfs`）即停用对应内置规则；清空恢复全部默认
+- 追加自定义正则段：`…;chmod-recursive;git\s+push\s+--force`，命令文本命中即人工确认
+- `#` 开头的段为注释；正则内不能包含分号（它是分隔符）
 
 内置规则的完整匹配模式对照表见 [docs/DESIGN.md](docs/DESIGN.md) §6.1。其中 rm / chmod 类判定是 token 级组合逻辑（ rm + 递归旗标 + 危险目标三者同现），无法等价压缩为单行正则，故清单中以 ID 引用而非展示为正则。
 
 ### 手动编辑配置文件
 
-三项配置持久化于 `~/.zcode/cli/config.json` 的 `plugins` 配置段，`danger_rules` 可直接手动维护：值为清单文本（一行一条，格式同上表），保存后对下一次工具调用立即生效——守门脚本每次调用现读该文件，无需重启。清空该键等于恢复全部默认规则。
+三项配置持久化于 `~/.zcode/cli/config.json` 的 `plugins.options` 下，以插件 ID 为键（实测形状：`plugins.options["workspace-guard@zcode-workspace-guard"].danger_rules`）。手动维护 `danger_rules` 时值为清单文本（分号分隔，格式同上；换行分隔亦接受），保存后对下一次工具调用立即生效——守门脚本每次调用现读该文件，无需重启。清空该键等于恢复全部默认规则。
 
-注意：手动编辑不会即时反映到设置界面（界面在启动时载入配置）；建议先在 Advanced 中保存一次、参照该文件的实际落盘结构再手动维护，确保与宿主读取路径一致。
+注意：设置界面在启动时载入配置，手动编辑不会即时反映到输入框；且经界面保存会剥掉值中的换行，分号分隔是唯一能在界面往返中保持完整的格式。
 
 ## 已知局限
 

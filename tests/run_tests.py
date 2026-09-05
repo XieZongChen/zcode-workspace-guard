@@ -18,6 +18,9 @@ CASES_DIR = os.path.join(REPO_ROOT, "tests", "cases")
 
 CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
+# 基线配置：与 guard.py DEFAULT_CONFIG 等价，逐用例全量注入（测试封闭性）
+BASELINE_CONFIG = {"sandbox_enabled": True, "danger_gate_enabled": True, "danger_rules": ""}
+
 
 class Session(object):
     """每次运行的临时环境：项目 {WS}、界外目录 {OUT}、真实 /tmp {TMP}。
@@ -29,6 +32,7 @@ class Session(object):
 
     def __init__(self):
         base = tempfile.mkdtemp(prefix="wsg-test-")
+        self.base = base
         self.ws = os.path.join(base, "ws")
         self.out = os.path.join(base, "out")
         self.tmpdir = os.path.join(base, "tmpdir")
@@ -79,19 +83,27 @@ def run_case(session, case, index):
 
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "HOME": os.environ.get("HOME", "/tmp"),
+        # HOME 指向受控基目录：取值链第 2 级（~/.zcode/cli/config.json）
+        # 随之指向不存在的受控路径，本机宿主保存过的配置无法渗入判定
+        "HOME": session.base,
         "TMPDIR": session.tmpdir,  # 受控 TMPDIR，保证 {OUT} 在可写根之外
         "ZCODE_PROJECT_DIR": session.ws,
     }
-    if "config" in case:
-        cfg_path = os.path.join(session.ws, "..", "config-%d.json" % index)
-        cfg_path = os.path.abspath(cfg_path)
-        with open(cfg_path, "w") as f:
-            json.dump(case["config"], f)
-        env[CONFIG_ENV] = cfg_path
-    elif case.get("config_missing"):
+    if case.get("config_missing"):
         # C6：env 指向不存在的配置文件，验证回落默认值
         env[CONFIG_ENV] = os.path.join(session.out, "no-such-config.json")
+    else:
+        # 测试封闭性：所有用例都全量注入基线配置，用例 config 在基线上
+        # 覆盖——guard 永远读不到本机真实 config.json（宿主 UI 保存过的
+        # 值会污染判定，0.3.0 事故：mangled 保存值让 D 组全红）
+        cfg = dict(BASELINE_CONFIG)
+        cfg.update(case.get("config", {}))
+        cfg_path = os.path.abspath(
+            os.path.join(session.ws, "..", "config-%d.json" % index)
+        )
+        with open(cfg_path, "w") as f:
+            json.dump(cfg, f)
+        env[CONFIG_ENV] = cfg_path
 
     if "stdin_raw" in case:
         stdin_data = case["stdin_raw"]
@@ -184,14 +196,20 @@ def check_manifest_rules():
     with open(manifest_path, encoding="utf-8") as f:
         manifest = json.load(f)
     default_text = manifest["userConfig"]["danger_rules"]["default"]
-    listed = {
-        line.strip()
-        for line in default_text.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    }
-    ok = builtin_ids is not None and listed == set(builtin_ids)
+    segments = [
+        s.strip() for s in default_text.replace("\n", ";").split(";")
+    ]
+    listed = {s for s in segments if s and not s.startswith("#")}
+    # 锁定 0.2.0 事故：默认值含换行/注释时，UI 单行输入保存会剥换行，
+    # 整串因 # 开头被当注释 → 危险门静默零规则
+    single_line_safe = "\n" not in default_text and "#" not in default_text
+    ok = (
+        builtin_ids is not None
+        and listed == set(builtin_ids)
+        and single_line_safe
+    )
     print(
-        "%s  META plugin.json 危险规则默认值与 guard.py 内置规则一致"
+        "%s  META plugin.json 危险规则默认值与 guard.py 内置规则一致（单行、无注释）"
         % ("PASS" if ok else "FAIL")
     )
     return ok

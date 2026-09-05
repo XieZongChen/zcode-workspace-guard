@@ -83,19 +83,21 @@ BUILTIN_RULES = {
 def parse_rules(text):
     """danger_rules 清单解析（协议见 DESIGN.md §6.1）。
 
-    空白/# 注释行跳过；内置规则 ID 启用对应判定；其余行为自定义正则。
-    空文本或全空白 = 启用全部内置规则（安全默认，清空即重置）。"""
+    段以分号分隔（设置界面为单行输入框，保存会剥掉换行，故分号是
+    标准分隔符；换行分隔同样接受，便于手编 config.json）。空白段与
+    # 开头的注释段跳过；内置规则 ID 启用对应判定；其余段为自定义
+    正则。空文本或全空白 = 启用全部内置规则（安全默认，清空即重置）。"""
     if not text or not text.strip():
         return list(BUILTIN_RULES), []
     enabled, customs = [], []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
+    for segment in text.replace("\n", ";").split(";"):
+        segment = segment.strip()
+        if not segment or segment.startswith("#"):
             continue
-        if line in BUILTIN_RULES:
-            enabled.append(line)
+        if segment in BUILTIN_RULES:
+            enabled.append(segment)
         else:
-            customs.append(line)
+            customs.append(segment)
     return enabled, customs
 
 
