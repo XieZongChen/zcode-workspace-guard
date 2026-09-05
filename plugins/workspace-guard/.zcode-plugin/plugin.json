@@ -4,15 +4,15 @@
   "description": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
   "description_i18n": {
     "en": "Workspace fence and dangerous-command gate for ZCode: deterministic PreToolUse hooks, no AI judgment.",
-    "zh-CN": "面向 ZCode 的工作区围栏与危险命令拦截：基于确定性规则的 PreToolUse hook，无 AI 判断。"
+    "zh-CN": "面向 ZCode 的项目围栏与危险命令拦截：基于确定性规则的 PreToolUse hook，无 AI 判断。"
   },
   "license": "MIT",
   "userConfig": {
     "sandbox_enabled": {
       "type": "boolean",
       "default": true,
-      "title": "工作区围栏",
-      "description": "开启后文件写入限制在工作区与临时目录内，越界写入需人工确认"
+      "title": "项目围栏",
+      "description": "开启后文件写入限制在项目与临时目录内，越界写入需人工确认"
     },
     "danger_gate_enabled": {
       "type": "boolean",

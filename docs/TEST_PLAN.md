@@ -16,9 +16,9 @@
 ```
 
 - **路径占位符**（运行时解析，用例文件不含任何真实机器路径/个人信息）：
-  - `{WS}` —— 运行时创建的临时工作区目录（同时注入
+  - `{WS}` —— 运行时创建的临时项目目录（同时注入
     `ZCODE_PROJECT_DIR`）
-  - `{OUT}` —— 工作区之外的临时目录（界外路径构造用）
+  - `{OUT}` —— 项目之外的临时目录（界外路径构造用）
   - `{TMP}` —— 真实 `/tmp`（可写根内路径构造用）
   - `{HOME}` —— 运行机器的真实家目录（界外路径构造用，不落盘进用例文件）
 - **配置注入**：用例可带 `"config": {...}`，运行器写入临时 JSON 并设置
@@ -48,13 +48,13 @@
 | D14 | `rm -rf /Users/<某用户名>`（整级家目录） | `ask` |
 | D15–D20 | 日常放行回归：`rm -rf node_modules && pnpm install`、`rm -rf {TMP}/test-dir`、`rm -rf apps/daemon/tmp`、`rm -rf packages/*/dist`、`chmod -R 755 ./src`、`git push --force origin main` | 无输出 |
 
-### M3 工作区围栏-文件工具（cases/file_fence.json）
+### M3 项目围栏-文件工具（cases/file_fence.json）
 
 | 编号 | 用例 | 期望 |
 | --- | --- | --- |
 | F1 | Write 界内文件 `{WS}/src/a.ts` | `allow` |
 | F2 | Edit 界内深层且父目录不存在 `{WS}/a/b/c/new.ts` | `allow`（逐级上溯规范化） |
-| F3 | Write 界外 `{OUT}/evil.txt` | `ask`，reason 含"工作区"与可写根提示 |
+| F3 | Write 界外 `{OUT}/evil.txt` | `ask`，reason 含"项目"与可写根提示 |
 | F4 | Write 界外家目录路径（`~/xx` 展开为真实家目录，非 `{WS}` 内） | `ask` |
 | F5 | Write `/tmp/scratch.txt` | `allow` |
 | F6 | tool_input 用 `path` 键而非 `file_path` | 同 F1 语义 |

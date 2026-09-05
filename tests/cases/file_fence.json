@@ -1,13 +1,13 @@
 [
-  {"name": "F1 Write 工作区内文件放行", "tool_name": "Write", "tool_input": {"file_path": "{WS}/src/a.ts", "content": "x"}, "expect": {"decision": "allow"}},
+  {"name": "F1 Write 项目内文件放行", "tool_name": "Write", "tool_input": {"file_path": "{WS}/src/a.ts", "content": "x"}, "expect": {"decision": "allow"}},
   {"name": "F2 Edit 深层新建路径(父目录不存在)放行", "tool_name": "Edit", "tool_input": {"file_path": "{WS}/a/b/c/new.ts", "old_string": "a", "new_string": "b"}, "expect": {"decision": "allow"}},
-  {"name": "F3 Write 工作区外文件需确认", "tool_name": "Write", "tool_input": {"file_path": "{OUT}/evil.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "工作区"}},
-  {"name": "F4 Write 家目录路径需确认", "tool_name": "Write", "tool_input": {"file_path": "{HOME}/wg-test-note.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "工作区"}},
+  {"name": "F3 Write 项目外文件需确认", "tool_name": "Write", "tool_input": {"file_path": "{OUT}/evil.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "项目"}},
+  {"name": "F4 Write 家目录路径需确认", "tool_name": "Write", "tool_input": {"file_path": "{HOME}/wg-test-note.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "项目"}},
   {"name": "F5 Write /tmp 放行", "tool_name": "Write", "tool_input": {"file_path": "/tmp/wg-scratch.txt", "content": "x"}, "expect": {"decision": "allow"}},
   {"name": "F6 path 键兼容(同 F1 语义)", "tool_name": "Write", "tool_input": {"path": "{WS}/src/b.ts", "content": "x"}, "expect": {"decision": "allow"}},
   {"name": "F7 ApplyPatch 工具名识别", "tool_name": "ApplyPatch", "tool_input": {"file_path": "{WS}/src/c.ts", "content": "x"}, "expect": {"decision": "allow"}},
-  {"name": "F8 工作区内符号链接指向界外需确认(TOCTOU)", "tool_name": "Write",
+  {"name": "F8 项目内符号链接指向界外需确认(TOCTOU)", "tool_name": "Write",
    "setup": [{"symlink": {"link": "{WS}/link.ts", "target": "{OUT}/x.txt"}}],
    "tool_input": {"file_path": "{WS}/link.ts", "content": "x"},
-   "expect": {"decision": "ask", "reason_contains": "工作区"}}
+   "expect": {"decision": "ask", "reason_contains": "项目"}}
 ]

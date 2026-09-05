@@ -1,6 +1,6 @@
 # zcode-workspace-guard
 
-ZCode 插件 **workspace-guard**：在每条命令执行、每次文件写入之前进行规则检查，提供两项能力——**工作区围栏**与**危险命令门**。判定为纯规则匹配：不联网、不调用 AI、无第三方依赖，同一条命令总是得到同一结果。
+ZCode 插件 **workspace-guard**：在每条命令执行、每次文件写入之前进行规则检查，提供两项能力——**项目围栏**与**危险命令门**。判定为纯规则匹配：不联网、不调用 AI、无第三方依赖，同一条命令总是得到同一结果。
 
 ## 功能
 
@@ -8,7 +8,7 @@ ZCode 插件 **workspace-guard**：在每条命令执行、每次文件写入之
 
 命中以下模式的命令转为人工确认：`rm -rf` 作用于根目录、家目录或通配整个目录（`/`、`~`、`*` 等）；`dd` 写入 `/dev/…`；`mkfs`；`diskutil eraseDisk` / `eraseVolume` / `deleteContainer`；fork 炸弹；`chmod -R` / `chown -R` 作用于根或家目录；`--no-preserve-root`。批准一次执行一次，拒绝则不执行。该检查与宿主权限模式无关，"完全访问"模式下同样生效。
 
-**工作区围栏**（默认开启）
+**项目围栏**（默认开启）
 
 可写范围为当前项目目录 + `/tmp` + `$TMPDIR`，`/dev/null` 始终合法：
 
@@ -47,7 +47,7 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 | 配置 | 类型 | 默认 | 说明 |
 | --- | --- | --- | --- |
 | `danger_gate_enabled` | boolean | `true` | 危险命令门开关 |
-| `sandbox_enabled` | boolean | `true` | 工作区围栏开关，关闭后仅剩危险命令门 |
+| `sandbox_enabled` | boolean | `true` | 项目围栏开关，关闭后仅剩危险命令门 |
 | `custom_danger_rules` | string | 空 | 自定义危险规则，一行一条正则，命令文本命中即人工确认；仅危险命令门开启时生效。例：`git\s+push\s+--force` |
 
 ## 已知局限

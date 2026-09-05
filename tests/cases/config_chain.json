@@ -4,7 +4,7 @@
    "tool_input": {"command": ":(){ :|:& };:"}, "expect": {"decision": null}},
   {"name": "C2 两能力独立：门关围栏仍拦界外写入", "tool_name": "Write",
    "config": {"danger_gate_enabled": false, "sandbox_enabled": true},
-   "tool_input": {"file_path": "{OUT}/f.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "工作区"}},
+   "tool_input": {"file_path": "{OUT}/f.txt", "content": "x"}, "expect": {"decision": "ask", "reason_contains": "项目"}},
   {"name": "C3 自定义危险规则命中", "tool_name": "Bash",
    "config": {"custom_danger_rules": "git\\s+push\\s+--force"},
    "tool_input": {"command": "git push --force origin main"}, "expect": {"decision": "ask", "reason_contains": "自定义"}},

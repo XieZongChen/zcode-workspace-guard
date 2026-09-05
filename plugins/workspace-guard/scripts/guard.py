@@ -2,7 +2,7 @@
 """workspace-guard：ZCode PreToolUse 守门脚本。
 
 设计文档见仓库 docs/DESIGN.md；测试规划见 docs/TEST_PLAN.md。
-当前已落地：危险命令门（内置规则）、工作区围栏-文件工具。后续里程碑：
+当前已落地：危险命令门（内置规则）、项目围栏-文件工具。后续里程碑：
 Bash 越界启发式、配置取值链。
 """
 import json
@@ -72,11 +72,11 @@ def check_danger(command):
     return None
 
 
-# ---- 工作区围栏：可写根与路径规范化（见 DESIGN.md §5.2/§6.3）----
+# ---- 项目围栏：可写根与路径规范化（见 DESIGN.md §5.2/§6.3）----
 
 
 def workspace_root():
-    """工作区根来自宿主注入的环境变量；缺失返回 None（围栏降级）。"""
+    """项目根来自宿主注入的环境变量；缺失返回 None（围栏降级）。"""
     env = os.environ.get("ZCODE_PROJECT_DIR") or os.environ.get("CLAUDE_PROJECT_DIR")
     if not env:
         return None
@@ -84,7 +84,7 @@ def workspace_root():
 
 
 def writable_roots(root):
-    """可写根集合：工作区根 + /tmp + $TMPDIR，全部 realpath 规范化去重。"""
+    """可写根集合：项目根 + /tmp + $TMPDIR，全部 realpath 规范化去重。"""
     roots = [root, "/tmp", os.environ.get("TMPDIR", "")]
     seen = []
     for r in roots:
@@ -125,11 +125,11 @@ def fence_file_tool(path, root):
     roots = writable_roots(root)
     target = canonical_path(path)
     if target == "/dev/null" or any(is_under(target, r) for r in roots):
-        return "allow", "工作区内写入，放行"
+        return "allow", "项目内写入，放行"
     return (
         "ask",
-        "写入目标在工作区外，需要人工确认。目标：%s。可写根：%s。"
-        "请改用工作区内路径，或向用户说明理由并获得批准。" % (target, "、".join(roots)),
+        "写入目标在项目外，需要人工确认。目标：%s。可写根：%s。"
+        "请改用项目内路径，或向用户说明理由并获得批准。" % (target, "、".join(roots)),
     )
 
 
@@ -163,7 +163,7 @@ def check_bash_fence(command, root):
     for m in REDIRECT.finditer(command):
         target = m.group(1) or m.group(2)
         if target and _abs_outside(target, roots):
-            return "重定向写入工作区外目标 %s" % target
+            return "重定向写入项目外目标 %s" % target
 
     for segment in SEGMENT_SPLIT.split(command):
         tokens = segment.split()
@@ -172,11 +172,11 @@ def check_bash_fence(command, root):
             if verb in VERB_DEST_ONLY:
                 args = [t for t in tokens[i + 1:] if not t.startswith("-")]
                 if args and _abs_outside(args[-1], roots):
-                    return "%s 的目的参数在工作区外：%s" % (verb, args[-1])
+                    return "%s 的目的参数在项目外：%s" % (verb, args[-1])
             elif verb in VERB_ALL_ARGS:
                 for arg in tokens[i + 1:]:
                     if not arg.startswith("-") and _abs_outside(arg, roots):
-                        return "%s 作用于工作区外路径：%s" % (verb, arg)
+                        return "%s 作用于项目外路径：%s" % (verb, arg)
 
     return None
 
@@ -304,7 +304,7 @@ def decide(payload):
             if reason:
                 return _ask(
                     "Bash 命令疑似越界写入（启发式检测，enforcement: heuristic），"
-                    "需要人工确认。%s。可写根：%s。请改用工作区内路径，或向用户说明理由。"
+                    "需要人工确认。%s。可写根：%s。请改用项目内路径，或向用户说明理由。"
                     % (reason, "、".join(writable_roots(root)) if root else "未知")
                 )
 

@@ -6,7 +6,7 @@ ZCode（类 Claude Code 的 AI 编码客户端）在"完全访问"等权限模�
 执行 AI 生成的命令与文件写入。用户需要一道**确定性**的安检层：
 
 - 毁灭性操作（`rm -rf /`、抹盘、fork 炸弹等）无论什么权限模式都必须人工确认；
-- 文件修改默认限制在工作区内进行（借鉴 deepseek-harness 的
+- 文件修改默认限制在项目内进行（借鉴 deepseek-harness 的
   `workspace-write` 沙箱语义），越界写入需人工确认；
 - 判定必须是**纯规则匹配**，不依赖 AI 判断代码语义——避免同类产品
   （如基于 AI 扫描的 guardrail 插件）高误报打断开发流的问题。
@@ -18,7 +18,7 @@ ZCode（类 Claude Code 的 AI 编码客户端）在"完全访问"等权限模�
 | 能力 | 开关（userConfig） | 默认 | 触发动作 |
 | --- | --- | --- | --- |
 | 危险命令门 | `danger_gate_enabled` | 开 | Bash 命令命中内置/自定义规则 → `ask` 人工确认 |
-| 工作区围栏 | `sandbox_enabled` | 开 | 文件工具界内 → `allow`（免重复询问）；界外 → `ask`；Bash 越界写启发式 → `ask` |
+| 项目围栏 | `sandbox_enabled` | 开 | 文件工具界内 → `allow`（免重复询问）；界外 → `ask`；Bash 越界写启发式 → `ask` |
 
 两能力相互独立，各自可关。自定义危险规则 `custom_danger_rules`
 （一行一条正则）仅在危险命令门开启时生效。
@@ -33,7 +33,7 @@ ZCode（类 Claude Code 的 AI 编码客户端）在"完全访问"等权限模�
   插件不依赖面板档位也能生效的机制基础
 - **硬约束**：插件 API 无法向宿主权限模式面板添加新档位（manifest 的
   `settings` 等字段"只记录不执行"）。因此本插件不做独立模式体系，而是
-  以**常驻行为层**与面板任意模式叠加：面板选完全访问时，围栏就是工作区
+  以**常驻行为层**与面板任意模式叠加：面板选完全访问时，围栏就是项目
   边界；面板选常规模式时，界内 `allow` 会跳过宿主例行询问（日常编辑
   零打断），界外仍需确认
 - 危险命令门**不受任何模式/开关影响其"存在性"**：要临时全关只能禁用
@@ -62,7 +62,7 @@ zcode-workspace-guard/
 ```
 
 高优先级来源存在某键时覆盖低优先级同名键；全部异常（文件不存在/解析
-失败）时落到默认值。工作区根从环境变量 `ZCODE_PROJECT_DIR`（兼容
+失败）时落到默认值。项目根从环境变量 `ZCODE_PROJECT_DIR`（兼容
 `CLAUDE_PROJECT_DIR`）取，realpath 规范化；缺失时**围栏失效但危险门
 照常工作**（降级而非阻塞）。
 
@@ -70,7 +70,7 @@ zcode-workspace-guard/
 
 ```
 writable_roots = dedupe([
-    realpath(工作区根),        # ZCODE_PROJECT_DIR
+    realpath(项目根),        # ZCODE_PROJECT_DIR
     realpath("/tmp"),
     realpath($TMPDIR),         # macOS 通常是 /var/folders/...
 ])
@@ -90,7 +90,7 @@ writable_roots = dedupe([
 **文件工具**（Write/Edit/ApplyPatch，`tool_input.file_path`，兼容 `path`）：
 
 1. 围栏关闭：不输出决策
-2. 工作区根缺失（降级）：不输出决策
+2. 项目根缺失（降级）：不输出决策
 3. 目标路径规范化后在可写根内 → `allow`
 4. 界外 → `ask`（reason 附可写根列表，引导模型改用界内路径或向用户申请）
 
@@ -151,7 +151,7 @@ realpath 后拼回剩余段，再做包含比较（包含比较：`p == root` �
 | 操作 | 危险门（开） | 围栏（开）：界内 | 围栏（开）：界外 | 全部关闭 |
 | --- | --- | --- | --- | --- |
 | `rm -rf *` 等危险命令 | `ask` | —（危险门优先） | `ask` | 放行 |
-| 文件工具写工作区内 | 不适用 | `allow`（跳过宿主例行询问） | — | 放行 |
+| 文件工具写项目内 | 不适用 | `allow`（跳过宿主例行询问） | — | 放行 |
 | 文件工具写家目录/系统路径 | 不适用 | — | `ask` | 放行 |
 | `echo x > /tmp/f` | 放行 | 放行（/tmp 在可写根） | — | 放行 |
 | `echo x > ~/某文件` | 放行 | — | `ask` | 放行 |
@@ -163,5 +163,5 @@ realpath 后拼回剩余段，再做包含比较（包含比较：`p == root` �
 2. Bash 越界检测为启发式 best-effort；文件工具围栏为精确判断
 3. `${user_config.*}` 对 hook 的展开官方未文档化，配置读取以 config.json
    直读兜底，键名在安装后实测确认
-4. 工作区根依赖宿主注入的 `ZCODE_PROJECT_DIR` 环境变量；缺失时围栏降级
+4. 项目根依赖宿主注入的 `ZCODE_PROJECT_DIR` 环境变量；缺失时围栏降级
    （危险门不受影响）

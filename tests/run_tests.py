@@ -20,7 +20,7 @@ CONFIG_ENV = "ZCODE_WORKSPACE_GUARD_CONFIG"
 
 
 class Session(object):
-    """每次运行的临时环境：工作区 {WS}、界外目录 {OUT}、真实 /tmp {TMP}。
+    """每次运行的临时环境：项目 {WS}、界外目录 {OUT}、真实 /tmp {TMP}。
 
     基目录建在系统 TMPDIR 下，但 guard 子进程的 TMPDIR 被重定向到
     {SESSION}/tmpdir——否则 {OUT} 会天然落在可写根 $TMPDIR 内，围栏
