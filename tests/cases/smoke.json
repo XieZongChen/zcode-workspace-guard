@@ -1,0 +1,25 @@
+[
+  {
+    "name": "S1 非目标工具(Read)不干预",
+    "tool_name": "Read",
+    "tool_input": {"file_path": "{WS}/a.txt"},
+    "expect": {"decision": null}
+  },
+  {
+    "name": "S2 非法stdin静默放行(fail-open)",
+    "stdin_raw": "this is not json",
+    "expect": {"decision": null}
+  },
+  {
+    "name": "S3 Bash空命令放行",
+    "tool_name": "Bash",
+    "tool_input": {"command": ""},
+    "expect": {"decision": null}
+  },
+  {
+    "name": "S4 文件工具缺路径键放行",
+    "tool_name": "Write",
+    "tool_input": {"content": "x"},
+    "expect": {"decision": null}
+  }
+]

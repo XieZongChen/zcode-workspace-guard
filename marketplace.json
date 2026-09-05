@@ -1,0 +1,13 @@
+{
+  "name": "zcode-workspace-guard",
+  "plugins": [
+    {
+      "name": "workspace-guard",
+      "source": "./plugins/workspace-guard",
+      "version": "0.1.0",
+      "description": "Workspace fence and dangerous-command gate for ZCode (deterministic PreToolUse hooks)",
+      "category": "developer-tools",
+      "keywords": ["security", "hooks", "sandbox", "workspace"]
+    }
+  ]
+}
