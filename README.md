@@ -58,10 +58,6 @@ Settings → Plugin Management → workspace-guard → Advanced。配置持久�
 
 规则明细、判定协议与安全模型见 [docs/DESIGN.md](docs/DESIGN.md)。
 
-## 从独立 danger_guard hook 迁移
-
-若 `~/.zcode/cli/config.json` 中配置过独立的危险命令 hooks，安装本插件后应删除该配置，避免同一命令双重弹窗。本插件的危险命令门覆盖其全部规则。
-
 ## 开发
 
 ```bash
