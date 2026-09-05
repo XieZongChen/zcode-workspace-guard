@@ -74,6 +74,7 @@ fork-bomb;dd-device;mkfs;diskutil-wipe;no-preserve-root;rm-destructive;chmod-rec
 1. shell 命令的越界检测为启发式：仅识别界外**绝对路径**的写操作，相对路径不检测（如先 `cd` 出项目再写）；文件工具的围栏为精确判断。
 2. 插件 API 不支持向 ZCode 权限面板添加档位；本插件以常驻检查层的形式与任意模式叠加。
 3. 守门脚本故障时放行（fail-open），作为宿主权限体系之外的补充，不影响会话可用性。
+4. 无法自动识别工作区文件夹：宿主提供给插件的项目根是**当前任务的工作目录**——实测 PreToolUse 的全部载荷字段与环境变量中均无工作区级路径（证据见 [docs/DESIGN.md](docs/DESIGN.md) §5.2）。一个工作区并列多个项目、且任务根选在其中一个子项目时，写入兄弟目录会触发人工确认；在「额外可写根」（`extra_writable_roots`）中声明一次即可覆盖。待宿主提供工作区路径变量后可升级为自动识别。
 
 规则明细、判定协议与安全模型见 [docs/DESIGN.md](docs/DESIGN.md)。
 
