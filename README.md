@@ -1,62 +1,64 @@
-# zcode-workspace-guard
+# workspace-guard
 
-ZCode 插件 **workspace-guard**：以确定性 PreToolUse hook 为 ZCode 提供两个
-常驻防护能力，纯规则匹配，无 AI 判断、无网络、无第三方依赖。
+AI 在你项目里干活时，不该事事来烦你；它想删你的家目录时，更不该一声不吭。
 
-- **工作区围栏**（默认开）：文件写入限制在工作区与临时目录（`/tmp`、
-  `$TMPDIR`）内；界内直接放行（并跳过宿主例行询问，日常编辑零打断），
-  界外触发人工确认。Bash 命令的越界写入（重定向 / `cp` / `mv` / `rm` /
-  `tee` 作用于界外绝对路径）做启发式检出。
-- **危险命令门**（默认开）：毁灭性命令（`rm -rf /`、`rm -rf ~`、
-  `rm -rf *`、`dd of=/dev/…`、`mkfs`、`diskutil eraseDisk`、fork 炸弹、
-  `chmod -R` 根/家目录、`--no-preserve-root` 等）无论宿主处于何种权限
-  模式一律强制人工确认。
+这个 ZCode 插件就干这一件事：**项目里面随便改，零打扰；项目外面和毁灭性操作，先弹窗问你。**
 
-设计原则：**宁可漏报不可误报**——`rm -rf node_modules`、
-`rm -rf <具体路径>`、`chmod -R 755 ./src` 等日常命令零干扰。
-完整设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+它只靠写死的规则做判断——不联网、不调 AI、不需要 API key，同一条命令永远得到同一个结果。
+
+## 它管两件事
+
+**危险命令门**：AI 想跑 `rm -rf *`（清空当前目录）、`rm -rf ~`（删家目录）、抹盘、格式化、fork 炸弹这类命令时，不管你在 ZCode 里选了什么权限模式（包括"完全访问"），都会先弹确认框。你点批准，执行这一次；点拒绝，就不执行。
+
+**工作区围栏**：AI 改你**当前项目目录**里的文件，一路绿灯——如果你选的是需要确认的权限模式，界内写入也会被直接放行，日常编辑比不开插件还顺滑。但它想写项目外面的地方（桌面、家目录、`~/.zcode`、别的项目），会弹窗问你。`/tmp` 和系统临时目录也算"里面"，写临时文件不打扰你。
+
+## 实际用起来是什么样
+
+| AI 想做的事 | 你会看到 |
+| --- | --- |
+| 修改你项目里的代码 | 什么都没有，直接执行 |
+| 往 `/tmp` 写临时文件 | 什么都没有，直接执行 |
+| `rm -rf node_modules`、`rm -rf 某个具体路径`、`chmod -R 755 ./src` | 什么都没有，日常命令绝不打扰 |
+| 往 `~/Desktop`、`~/.zcode` 等项目外路径写文件 | 弹窗：目标路径、可写范围都在理由里，批准一次执行一次 |
+| `echo x > ~/某文件`（用 shell 重定向往界外写） | 弹窗 |
+| `rm -rf *`、`dd of=/dev/...`、`mkfs`、fork 炸弹等 | 弹窗，这条不受任何开关和模式影响 |
+
+被拦下的理由都以 `[workspace-guard: …]` 开头，AI 能看懂这个标记、知道该换个项目内的路径或向你说清理由——插件附带的技能文件就是教它这个的。
 
 ## 安装
 
-仓库根本身就是 marketplace（含 `marketplace.json`）。
+这个仓库根本身就是一个 marketplace，两种装法：
 
-**从本地目录**：ZCode → Settings → Plugin Management → Discover →
-`+` → 选择本仓库克隆目录 → 安装 `workspace-guard`。
+- **本地**：ZCode → Settings → Plugin Management → Discover → `+` → 选择本仓库的目录 → 安装 `workspace-guard`
+- **GitHub**：`+` 处填 `https://github.com/XieZongChen/zcode-workspace-guard` → 安装
 
-**从 GitHub**：`+` 处填入 `https://github.com/XieZongChen/zcode-workspace-guard`
-→ 安装 `workspace-guard`。
+装完（或改过启用状态后）要**新建一个任务**才生效——hook 配置在任务启动时加载。
 
-安装/启停后需**新建任务**（hook 与 MCP 配置在任务启动时快照）。
+想确认它在工作：新开任务，让 AI 找个不要的目录跑一条 `rm -rf *`，弹出确认框就是它干的。
 
 ## 配置
 
-插件详情 → Advanced，三项配置（持久化于 `~/.zcode/cli/config.json`，
-改动对新工具调用即时生效）：
+Settings → Plugin Management → workspace-guard → Advanced，三个配置项（存放在 `~/.zcode/cli/config.json`，改完对下一次工具调用立即生效，不用重启）：
 
-| 配置 | 类型 | 默认 | 说明 |
-| --- | --- | --- | --- |
-| `sandbox_enabled` | boolean | `true` | 工作区围栏开关 |
-| `danger_gate_enabled` | boolean | `true` | 危险命令门开关 |
-| `custom_danger_rules` | string | 空 | 一行一条正则，Bash 命令文本命中即人工确认；仅门开启时生效。例：`git\s+push\s+--force` |
+| 配置 | 默认 | 作用 |
+| --- | --- | --- |
+| `danger_gate_enabled` | 开 | 危险命令门。关掉后毁灭性命令不再拦 |
+| `sandbox_enabled` | 开 | 工作区围栏。关掉后文件写到哪里都行，只剩危险门 |
+| `custom_danger_rules` | 空 | 自己补充的危险规则，一行一条正则，命令文本命中就弹窗。比如填 `git\s+push\s+--force`，以后每次强推都先问你。仅危险门开启时生效 |
 
-## 行为矩阵
+"项目里面"的准确范围：当前项目目录 + `/tmp` + `$TMPDIR`，外加 `/dev/null` 永远合法。
 
-| 操作 | 门（开） | 围栏（开）：界内 | 围栏（开）：界外 |
-| --- | --- | --- | --- |
-| `rm -rf *` 等危险命令 | 人工确认 | — | 人工确认 |
-| 文件工具写工作区内 | 不适用 | 放行（免例行询问） | — |
-| 文件工具写家目录/系统路径 | 不适用 | — | 人工确认 |
-| `echo x > /tmp/f` | 放行 | 放行 | — |
-| `echo x > ~/某文件` | 放行 | — | 人工确认 |
-| `rm -rf node_modules` | 放行 | 放行 | — |
+## 它做不到什么（如实说）
 
-## 已知局限（如实声明）
+- **shell 命令的检查是"看出苗头就问"，不是铁幕。** 文件工具（Write/Edit）的越界判断是精确的；但 shell 命令太灵活，插件只能识别重定向、`cp`/`mv`/`rm`/`tee` 指向项目外绝对路径这些明显迹象，先 `cd` 出去再用相对路径写就能绕开。它防的是失误，不是处心积虑的恶意。
+- **给不了 ZCode 权限面板新档位。** 插件 API 没有这个入口。所以它做成常驻检查层，和你面板上选的任何模式叠加工作，而不是一个新模式。
+- **守门脚本自己出问题时会放行**（fail-open）。它是你现有权限体系之外的额外防线，不是替代品——它的故障不应该有能力搞瘫你的会话。
 
-1. 插件 API 无法向宿主权限模式面板添加新档位；本插件以常驻行为层与
-   面板任意模式叠加的方式等价实现
-2. Bash 越界检测为启发式 best-effort（enforcement: heuristic）；文件
-   工具围栏为精确判断（enforcement: full）
-3. 守门脚本自身故障时 fail-open（放行），它是额外防线而非唯一防线
+规则明细、判定协议、安全模型的完整版在 [docs/DESIGN.md](docs/DESIGN.md)。
+
+## 从旧的 danger_guard hook 迁移
+
+如果你以前在 `~/.zcode/cli/config.json` 的 `hooks` 块里配过独立的危险命令脚本：装本插件后把那个块删掉，否则同一条命令会弹两次窗。本插件的危险门覆盖了它的全部规则。
 
 ## 开发
 
@@ -64,14 +66,7 @@ ZCode 插件 **workspace-guard**：以确定性 PreToolUse hook 为 ZCode 提供
 python3 tests/run_tests.py   # 全量回归（51 例），提交前必须全绿
 ```
 
-工作约定见 [AGENTS.md](AGENTS.md)，测试规划见
-[docs/TEST_PLAN.md](docs/TEST_PLAN.md)。
-
-## 从独立 danger_guard hook 迁移
-
-若你此前在 `~/.zcode/cli/config.json` 的 `hooks` 块中配置过独立的
-危险命令守门脚本：安装本插件后请删除该 hooks 块，避免同一条命令双重
-弹窗。本插件的危险命令门覆盖并取代其全部规则。
+协作约定见 [AGENTS.md](AGENTS.md)，测试规划见 [docs/TEST_PLAN.md](docs/TEST_PLAN.md)。
 
 ## License
 
