@@ -75,7 +75,8 @@ writable_roots = dedupe([
     realpath(项目根),        # ZCODE_PROJECT_DIR（宿主注入的是会话工作目录）
     realpath("/tmp"),
     realpath($TMPDIR),         # macOS 通常是 /var/folders/...
-    *额外可写根               # extra_writable_roots：分号分隔绝对路径，~ 展开
+    *额外可写根               # extra_writable_roots：分号分隔绝对路径，~ 展开；
+                             # 默认空，不配置则无此项
 ])
 ```
 
