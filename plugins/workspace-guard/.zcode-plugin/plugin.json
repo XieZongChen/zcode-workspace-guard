@@ -22,7 +22,6 @@
     },
     "danger_rules": {
       "type": "string",
-      "multiline": true,
       "default": "# 危险规则清单，一行一条：内置规则 ID 或自定义正则\n# 删除某行即停用该规则；清空恢复全部默认（规则含义见插件文档）\nfork-bomb\ndd-device\nmkfs\ndiskutil-wipe\nno-preserve-root\nrm-destructive\nchmod-recursive",
       "title": "危险规则清单",
       "description": "一行一条：内置规则 ID（fork-bomb / dd-device / mkfs / diskutil-wipe / no-preserve-root / rm-destructive / chmod-recursive）或自定义正则（如 git\\s+push\\s+--force）。删除某行即停用该规则；清空恢复全部默认；仅危险命令门开启时生效"
